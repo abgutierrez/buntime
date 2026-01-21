@@ -1,4 +1,4 @@
-import { toml } from "bun";
+import { type ServeOptions } from "bun";
 
 export interface SandboxConfig {
     security: {
@@ -19,13 +19,12 @@ export interface SandboxConfig {
     };
 }
 
-export async function loadConfig(path: string = "config.toml"): Promise<SandboxConfig> {
+export async function loadConfig(path: string = "config.json"): Promise<SandboxConfig> {
     try {
         const file = Bun.file(path);
         if (await file.exists()) {
-            const content = await file.text();
-            // @ts-ignore - Bun types for TOML might be missing in older versions or incomplete
-            return toml(content) as SandboxConfig;
+            const content = await file.json();
+            return content as SandboxConfig;
         }
     } catch (e) {
         console.warn(`[Config] Failed to load ${path}, using defaults. Error: ${e}`);

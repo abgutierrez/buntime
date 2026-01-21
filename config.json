@@ -1,0 +1,22 @@
+{
+  "security": {
+    "mode": "strict"
+  },
+  "network": {
+    "enabled": true,
+    "policy": "allow_list",
+    "allow_list": [
+      "httpbin.org",
+      "www.google.com",
+      "google.com"
+    ],
+    "rate_limit": 5
+  },
+  "filesystem": {
+    "allow_write": false
+  },
+  "resources": {
+    "memory_limit": 64,
+    "cpu_limit": 50
+  }
+}

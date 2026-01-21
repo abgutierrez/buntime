@@ -1,6 +1,6 @@
 FROM oven/bun:1.3.6
 
-# Install Python3 and basic build tools
+# Install Python3 and basic build tools + Networking tools
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-dev \
@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     file \
     gcc \
+    iproute2 \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install requests --break-system-packages
