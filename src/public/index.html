@@ -301,6 +301,28 @@ try:
 except Exception as e:
     print(f"[Python] Blocked request failed as expected: {e}", flush=True)
 
+print("-" * 20, flush=True)
+
+# 3. Filesystem Isolation Test
+try:
+    print("[Python] Testing Filesystem Isolation...", flush=True)
+    import os
+    print(f"[Python] CWD: {os.getcwd()}", flush=True)
+    print(f"[Python] Root LS: {os.listdir('/')}", flush=True)
+    
+    # Try to read sensitive host file (should fail or not exist in chroot)
+    # If we mounted /etc from host, we might see passwd, but shadow should be unreadable by user
+    # If we are root (which we are currently, inside namespace), we might see it IF it was mounted.
+    # But we only mounted /etc.
+    
+    if os.path.exists("/home"):
+        print("[Python] /home exists (Warning: Host leakage?)", flush=True)
+    else:
+        print("[Python] /home does NOT exist (Good)", flush=True)
+
+except Exception as e:
+    print(f"[Python] FS Test Error: {e}", flush=True)
+
 print("[Python] Done!", flush=True)</textarea>
         </div>
 
