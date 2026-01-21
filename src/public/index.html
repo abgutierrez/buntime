@@ -286,6 +286,8 @@ print("[Python] Starting Network Test...", flush=True)
 # 1. Network Connectivity Test
 try:
     print("[Python] Testing Network Connectivity...", flush=True)
+    import os
+    print(f"[Python] Env HTTP_PROXY: {os.environ.get('HTTP_PROXY')}", flush=True)
     
     # 1.1 Allowed Request (Google - should work if config.toml allows it)
     try:

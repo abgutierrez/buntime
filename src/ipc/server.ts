@@ -92,6 +92,12 @@ export class IPCServer {
     console.log(`[Bun] Socket created at ${this.socketPath}`);
 
     const args = ["python3", pythonScript, this.socketPath, this.shmName, this.shmSize.toString()];
+    
+    // Prepare environment variables for the sandbox
+    const env: Record<string, string> = {
+        // Propagate some existing env vars if needed?
+        "PYTHONUNBUFFERED": "1"
+    };
 
     // Load configuration to check for network settings
     const config = await loadConfig();
@@ -102,18 +108,18 @@ export class IPCServer {
         this.proxy.start();
         console.log("[Bun] Network Proxy started on port 8080");
         
-        // We set environment variables for the subprocess, but for the sandbox case,
-        // we might need to rely on the wrapper or ensure they are passed down.
-        // For now, python requests/urllib respects these vars automatically if set in the env.
-        process.env.HTTP_PROXY = "http://169.254.1.1:8080";
-        process.env.HTTPS_PROXY = "http://169.254.1.1:8080";
+        // Configure Proxy Environment Variables
+        env["HTTP_PROXY"] = "http://169.254.1.1:8080";
+        env["HTTPS_PROXY"] = "http://169.254.1.1:8080";
+        // Also set NO_PROXY for localhost/127.0.0.1 just in case, though we have no localhost in sandbox
+        env["NO_PROXY"] = "localhost,127.0.0.1";
     }
 
     if (process.platform === "linux") {
         try {
             console.log("[Bun] Using SandboxLauncher (Linux detected)");
             const launcher = new SandboxLauncher();
-            this.sandboxPid = launcher.spawnProcess(args);
+            this.sandboxPid = launcher.spawnProcess(args, env);
             console.log(`[Bun] Sandbox Spawned Python PID ${this.sandboxPid}`);
 
             if (config.network.enabled && this.sandboxPid > 0) {

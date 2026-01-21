@@ -77,6 +77,10 @@ for (const libPath of libcPaths) {
                 args: [FFIType.cstring, FFIType.i32],
                 returns: FFIType.i32,
             },
+            setenv: {
+                args: [FFIType.cstring, FFIType.cstring, FFIType.i32],
+                returns: FFIType.i32,
+            },
             strerror: {
                 args: [FFIType.i32],
                 returns: FFIType.cstring,
@@ -100,7 +104,7 @@ export class SandboxLauncher {
         }
     }
 
-    public spawnProcess(cmd: string[]): number {
+    public spawnProcess(cmd: string[], env: Record<string, string> = {}): number {
         if (!libc) throw new Error("libc not loaded");
 
         // Step 1: Fork the first time (Child 1)
@@ -172,6 +176,13 @@ export class SandboxLauncher {
 
         // --- PHASE C: FILESYSTEM ISOLATION ---
         this.setupFilesystem();
+
+        // Apply Environment Variables
+        for (const [key, value] of Object.entries(env)) {
+            const k = Buffer.from(key + "\0");
+            const v = Buffer.from(value + "\0");
+            libc.symbols.setenv(ptr(k), ptr(v), 1);
+        }
 
         // Prepare argv for execvp
         const buffers = cmd.map(s => Buffer.from(s + "\0"));
