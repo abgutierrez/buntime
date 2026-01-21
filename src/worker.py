@@ -187,10 +187,20 @@ def main():
             break
         except FileNotFoundError:
             time.sleep(0.1)
+        except Exception as e:
+            print(f"[Python] Connection error (attempt {i}): {e}")
+            time.sleep(0.1)
 
     if not connected:
         print(f"[Python] Could not connect to {socket_path}")
-        print(f"[Python] /tmp content: {os.listdir('/tmp')}")
+        try:
+            # Debugging: check what IS in /app or socket directory
+            dirname = os.path.dirname(socket_path)
+            if not dirname:
+                dirname = "."
+            print(f"[Python] Listing directory {dirname}: {os.listdir(dirname)}")
+        except Exception as e:
+            print(f"[Python] Listing directory failed: {e}")
         return
 
     sock.sendall(b"READY\n")
