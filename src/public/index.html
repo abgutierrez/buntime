@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bun Python IPC</title>
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-panel: #252526;
+            --bg-widget: #2d2d2d;
+            --border: #3e3e3e;
+            --accent: #eab308;
+            --accent-hover: #ca9a04;
+            --text-main: #e0e0e0;
+            --text-muted: #888;
+            --success: #4caf50;
+            --danger: #e53935;
+            --info: #2196f3;
+            --mono: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            height: 50px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+        }
+
+        h1 {
+            font-size: 1rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #444;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        .status-badge.connected { background: var(--success); color: #000; }
+
+        .health-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            font-family: var(--mono);
+        }
+        .health-pill.ok { background: var(--success); color: #000; }
+        .health-pill.warn { background: #f59e0b; color: #000; }
+        .health-pill.hot { background: #e53935; color: #000; }
+
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .editor-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            min-width: 0;
+        }
+
+        .debug-sidebar {
+            width: 450px;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-dark);
+            border-left: 1px solid var(--border);
+        }
+
+        .toolbar {
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border);
+        }
+
+        textarea {
+            flex: 1;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            border: none;
+            padding: 20px;
+            font-family: var(--mono);
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .panel-header {
+            padding: 8px 15px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .memory-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: var(--bg-widget);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            color: #ccc;
+        }
+        .metric-row span:last-child { color: #fff; font-weight: bold; }
+        .metric-row.highlight { color: var(--accent); }
+
+        .usage-bar {
+            height: 4px;
+            background: #444;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .usage-fill {
+            height: 100%;
+            background: var(--info);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .usage-fill.high { background: var(--danger); }
+
+        .state-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        
+        .state-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            padding: 8px;
+            background: var(--bg-widget);
+            border-radius: 4px;
+        }
+        
+        .state-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #555;
+        }
+        .state-indicator.active { background: var(--success); box-shadow: 0 0 8px rgba(76, 175, 80, 0.4); }
+        .state-indicator.error { background: var(--danger); }
+        
+        .state-label { width: 80px; color: var(--text-muted); font-size: 0.75rem; }
+        .state-value { font-family: var(--mono); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .output-panel {
+            flex: 1;
+            min-height: 150px;
+            background: #111;
+        }
+        .output-content {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            padding: 15px;
+            white-space: pre-wrap;
+            color: #ccc;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary { background: var(--accent); color: #000; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { opacity: 0.9; }
+
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; border: 2px solid var(--bg-dark); }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>⚡ Bun + Python IPC</h1>
+        <div id="status" class="status-badge">Disconnected</div>
+    </header>
+    
+    <div class="workspace">
+        <div class="editor-section">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="runCode()">
+                    ▶ RUN (Ctrl+Enter)
+                </button>
+                <button class="btn btn-danger" onclick="stopCode()">
+                    ⏹ STOP
+                </button>
+            </div>
+            <textarea id="editor" spellcheck="false"># Python Shared Memory REPL
+import time
+import sys
+
+print("[Python] Starting...", flush=True)
+
+# Simulating work
+for i in range(1, 11):
+    print(f"[Python] Processing batch {i}/10...", flush=True)
+    # Simulate data processing
+    data = {"id": i, "value": i * i}
+    time.sleep(0.3)
+
+print("[Python] Done!", flush=True)</textarea>
+        </div>
+
+        <div class="debug-sidebar">
+            
+            <div class="panel" style="flex: 0 0 auto;">
+                 <div class="panel-header">
+                    <span>Memory State (Ring Buffer)</span>
+                    <span id="buffer-health" class="health-pill ok">OK</span>
+                    <span style="font-size:10px; opacity:0.5">SHM</span>
+                </div>
+                <div class="panel-content">
+                    <div class="memory-grid">
+                        <div class="stat-card" id="mem-bun2py">
+                            <h3>Bun ➔ Py</h3>
+                            <div class="metric-row"><span>Head</span><span data-key="head">0</span></div>
+                            <div class="metric-row"><span>Tail</span><span data-key="tail">0</span></div>
+                            <div class="metric-row"><span>Used</span><span data-key="used">0B</span></div>
+                            <div class="metric-row"><span>Free</span><span data-key="free">0B</span></div>
+                            <div class="usage-bar"><div class="usage-fill" style="width: 0%"></div></div>
+                        </div>
+                        
+                        <div class="stat-card" id="mem-py2bun">
+                            <h3>Py ➔ Bun</h3>
+                            <div class="metric-row"><span>Head</span><span data-key="head">0</span></div>
+                            <div class="metric-row"><span>Tail</span><span data-key="tail">0</span></div>
+                            <div class="metric-row"><span>Used</span><span data-key="used">0B</span></div>
+                            <div class="metric-row"><span>Free</span><span data-key="free">0B</span></div>
+                            <div class="usage-bar"><div class="usage-fill" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex: 0 0 auto;">
+                <div class="panel-header">Execution Context</div>
+                <div class="panel-content">
+                    <div class="state-grid">
+                        <div class="state-item">
+                            <div class="state-indicator" id="status-bun"></div>
+                            <div class="state-label">BUN</div>
+                            <div class="state-value" id="state-bun-msg">Idle</div>
+                        </div>
+                        <div class="state-item">
+                            <div class="state-indicator" id="status-py"></div>
+                            <div class="state-label">PYTHON</div>
+                            <div class="state-value" id="state-py-msg">Waiting...</div>
+                        </div>
+                        <div class="state-item" style="border-top: 1px solid #333; margin-top: 5px; padding-top: 10px;">
+                            <div class="state-label" style="width:auto; margin-right:10px;">Last Signal:</div>
+                            <div class="state-value" id="last-signal" style="color: var(--accent);">NONE</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel output-panel">
+                <div class="panel-header">
+                    <span>Console Output</span>
+                    <button onclick="clearOutput()" style="background:none; border:none; color:#666; cursor:pointer; font-size:10px;">CLEAR</button>
+                </div>
+                <div id="output" class="output-content"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${location.host}/ws`);
+        const statusEl = document.getElementById('status');
+        const outputEl = document.getElementById('output');
+        const editor = document.getElementById('editor');
+
+        // State Elements
+        const bunStatus = document.getElementById('status-bun');
+        const pyStatus = document.getElementById('status-py');
+        const bunMsg = document.getElementById('state-bun-msg');
+        const pyMsg = document.getElementById('state-py-msg');
+        const lastSignal = document.getElementById('last-signal');
+        const healthEl = document.getElementById('buffer-health');
+
+        ws.onopen = () => {
+            statusEl.textContent = 'Connected';
+            statusEl.classList.add('connected');
+            bunStatus.classList.add('active');
+            bunMsg.textContent = "Connected";
+        };
+
+        ws.onclose = () => {
+            statusEl.textContent = 'Disconnected';
+            statusEl.classList.remove('connected');
+            bunStatus.classList.remove('active');
+            bunMsg.textContent = "Disconnected";
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                
+                if (msg.type === 'memory') {
+                    updateMemoryPanel(msg.data);
+                } else if (msg.type === 'state') {
+                    updateStatePanel(msg.data);
+                } else {
+                    appendOutput(typeof msg === 'object' ? JSON.stringify(msg, null, 2) : msg);
+                }
+            } catch (e) {
+                appendOutput(event.data);
+            }
+        };
+
+        function updateMemoryPanel(data) {
+            updateBufferCard('mem-bun2py', data.bun2py);
+            updateBufferCard('mem-py2bun', data.py2bun);
+
+            const bunUsage = data.bun2py ? data.bun2py.usagePercent : 0;
+            const pyUsage = data.py2bun ? data.py2bun.usagePercent : 0;
+            const maxUsage = Math.max(bunUsage, pyUsage);
+            
+            // Health thresholds: <10 OK, 10-70 WARN, >70 HOT
+            healthEl.className = 'health-pill';
+            if (maxUsage < 10) {
+                healthEl.classList.add('ok');
+                healthEl.textContent = 'OK';
+            } else if (maxUsage < 70) {
+                healthEl.classList.add('warn');
+                healthEl.textContent = 'WARN';
+            } else {
+                healthEl.classList.add('hot');
+                healthEl.textContent = 'HOT';
+            }
+        }
+
+        function updateStatePanel(data) {
+            if (data.bun) {
+                bunMsg.textContent = data.bun;
+                if (data.bun === 'Sending...') bunStatus.style.background = '#2196f3';
+                else bunStatus.style.background = '';
+            }
+            if (data.python) {
+                pyMsg.textContent = data.python;
+                if (data.python === 'Running') pyStatus.classList.add('active');
+                else pyStatus.classList.remove('active');
+            }
+            if (data.signal) {
+                lastSignal.textContent = data.signal;
+                lastSignal.style.opacity = '0.5';
+                setTimeout(() => { lastSignal.style.opacity = '1'; }, 100);
+            }
+        }
+
+        function updateBufferCard(id, metrics) {
+            if (!metrics) return;
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            el.querySelector('[data-key="head"]').textContent = metrics.head;
+            el.querySelector('[data-key="tail"]').textContent = metrics.tail;
+            el.querySelector('[data-key="used"]').textContent = formatBytes(metrics.used);
+            el.querySelector('[data-key="free"]').textContent = formatBytes(metrics.free);
+            
+            const fill = el.querySelector('.usage-fill');
+            fill.style.width = `${metrics.usagePercent}%`;
+            
+            if (metrics.usagePercent > 70) fill.className = 'usage-fill high';
+            else fill.className = 'usage-fill';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function appendOutput(text) {
+            outputEl.textContent += text;
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function clearOutput() {
+            outputEl.textContent = "";
+        }
+
+        function runCode() {
+            const code = editor.value;
+            ws.send(code); 
+            outputEl.textContent = ""; 
+            appendOutput(">> Sending code to Python...\n");
+        }
+
+        function stopCode() {
+            ws.send("STOP");
+            appendOutput("\n>> Sending STOP signal...\n");
+        }
+
+        editor.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                runCode();
+            }
+        });
+    </script>
+</body>
+</html>
