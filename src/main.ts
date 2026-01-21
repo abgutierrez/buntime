@@ -1,6 +1,7 @@
 import { PolicyLoader, type NormalizedPolicy } from "./sandbox/policy/loader";
 import { SandboxLauncher } from "./sandbox/launcher";
 import { IPCServer } from "./ipc/server";
+import { loadConfig } from "./config";
 import indexHtml from "./public/index.html";
 import { join } from "path";
 
@@ -14,6 +15,13 @@ let ipcServer: IPCServer | null = null;
 
 // --- Main Execution Logic ---
 async function initialize() {
+    // Load Configuration
+    const config = await loadConfig();
+    console.log(`[Main] Configuration loaded: ${config.security.mode} mode, Network: ${config.network.enabled ? "Enabled" : "Disabled"}`);
+    if (config.network.enabled && config.network.policy === "allow_list") {
+        console.log(`[Main] Allowed Domains: ${config.network.allow_list.join(", ")}`);
+    }
+
     const policyPath = process.env.POLICY_FILE || "src/policies/default.json";
     console.log(`[Main] Loading policy from: ${policyPath}`);
 

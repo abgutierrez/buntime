@@ -284,14 +284,29 @@ import requests
 print("[Python] Starting Network Test...", flush=True)
 
 # 1. Network Connectivity Test
-# In Phase C (Filesystem Isolation + Network Namespace), we expect NO network access.
-# Both requests below should fail with NameResolutionError or similar.
 try:
-    print("[Python] Attempting Request (Should FAIL in Phase C)...", flush=True)
-    r = requests.get("https://httpbin.org/get", timeout=2)
-    print(f"[Python] Unexpected Success! Status: {r.status_code}", flush=True)
+    print("[Python] Testing Network Connectivity...", flush=True)
+    
+    # 1.1 Allowed Request (Google - should work if config.toml allows it)
+    try:
+        print("[Python] Requesting https://www.google.com (Expected: ALLOWED)...", flush=True)
+        r = requests.get("https://www.google.com", timeout=3)
+        print(f"[Python] Google Status: {r.status_code}", flush=True)
+    except Exception as e:
+        print(f"[Python] Google Request Failed: {e}", flush=True)
+
+    print("-" * 10, flush=True)
+
+    # 1.2 Blocked Request (Should still be blocked)
+    try:
+        print("[Python] Requesting http://example.com (Expected: BLOCKED)...", flush=True)
+        r = requests.get("http://example.com", timeout=2)
+        print(f"[Python] Example.com Status: {r.status_code}", flush=True)
+    except Exception as e:
+        print(f"[Python] Example.com Blocked: {e}", flush=True)
+
 except Exception as e:
-    print(f"[Python] Request failed as expected (Network Isolated): {e}", flush=True)
+    print(f"[Python] Network Test Error: {e}", flush=True)
 
 print("-" * 20, flush=True)
 
