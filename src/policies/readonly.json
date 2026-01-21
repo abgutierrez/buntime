@@ -1,0 +1,28 @@
+{
+  "name": "readonly",
+  "description": "Read-only filesystem access, no execution restrictions",
+  "filesystem": {
+    "allowPaths": ["/workspace", "/workspace/shared", "/tmp"],
+    "denyPaths": ["/", "/home", "/root", "/etc", "/var"],
+    "allowWrite": false,
+    "allowRead": true
+  },
+  "network": {
+    "allowDomains": [],
+    "denyExternal": true,
+    "allowLocalhost": false
+  },
+  "commands": {
+    "forbiddenCommands": [],
+    "forbiddenModules": [],
+    "allowShell": false,
+    "allowExec": false,
+    "allowSubprocess": false
+  },
+  "execution": {
+    "maxDurationMs": 30000,
+    "maxOutputBytes": 1048576,
+    "maxMemoryMB": 512,
+    "allowInfiniteLoop": false
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "plugins": {
+    "namespaces": true,
+    "landlock": true,
+    "seccomp": true
+  },
+  "defaults": {
+    "fs": "deny",
+    "net": "deny",
+    "exec": "deny"
+  },
+  "fs": {
+    "rules": [
+      {
+        "action": "allow",
+        "path": "/tmp",
+        "perms": [
+          "read_file",
+          "write_file",
+          "read_dir",
+          "write_dir"
+        ]
+      },
+      {
+        "action": "allow",
+        "path": "/work",
+        "perms": [
+          "read_file",
+          "read_dir"
+        ]
+      }
+    ]
+  },
+  "net": {
+    "rules": [
+      {
+        "action": "allow",
+        "proto": "tcp",
+        "cidr": "0.0.0.0/0",
+        "ports": "443"
+      }
+    ]
+  },
+  "exec": {
+    "rules": [
+      {
+        "action": "allow",
+        "path": "/usr/bin/python3.12"
+      }
+    ]
+  }
+}

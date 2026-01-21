@@ -1,0 +1,28 @@
+{
+  "name": "no-network",
+  "description": "Allows filesystem and logic, but blocks all network access and libraries",
+  "filesystem": {
+    "allowPaths": ["/tmp"],
+    "denyPaths": ["/root", "/etc"],
+    "allowWrite": true,
+    "allowRead": true
+  },
+  "network": {
+    "allowDomains": [],
+    "denyExternal": true,
+    "allowLocalhost": true
+  },
+  "commands": {
+    "forbiddenCommands": ["curl", "wget", "nc", "netcat", "ssh", "telnet"],
+    "forbiddenModules": [],
+    "allowShell": false,
+    "allowExec": true,
+    "allowSubprocess": false
+  },
+  "execution": {
+    "maxDurationMs": 30000,
+    "maxOutputBytes": 1048576,
+    "maxMemoryMB": 512,
+    "allowInfiniteLoop": false
+  }
+}

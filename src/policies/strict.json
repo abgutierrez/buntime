@@ -1,0 +1,28 @@
+{
+  "name": "strict",
+  "description": "No filesystem access, no shell commands, no network access",
+  "filesystem": {
+    "allowPaths": [],
+    "denyPaths": ["/", "/home", "/root", "/etc", "/var"],
+    "allowWrite": false,
+    "allowRead": false
+  },
+  "network": {
+    "allowDomains": [],
+    "denyExternal": true,
+    "allowLocalhost": false
+  },
+  "commands": {
+    "forbiddenCommands": ["rm", "mv", "cp", "chmod", "chown", "su", "sudo", "kill", "killall"],
+    "forbiddenModules": ["os", "subprocess", "shutil", "sys"],
+    "allowShell": false,
+    "allowExec": false,
+    "allowSubprocess": false
+  },
+  "execution": {
+    "maxDurationMs": 30000,
+    "maxOutputBytes": 1048576,
+    "maxMemoryMB": 512,
+    "allowInfiniteLoop": false
+  }
+}

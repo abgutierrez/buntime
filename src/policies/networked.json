@@ -1,0 +1,28 @@
+{
+  "name": "networked",
+  "description": "Allow specific domains, deny all external network access",
+  "filesystem": {
+    "allowPaths": ["/workspace", "/workspace/shared", "/tmp"],
+    "denyPaths": ["/", "/home", "/root", "/etc", "/var"],
+    "allowWrite": false,
+    "allowRead": true
+  },
+  "network": {
+    "allowDomains": ["localhost", "127.0.0.1", "::1"],
+    "denyExternal": true,
+    "allowLocalhost": false
+  },
+  "commands": {
+    "forbiddenCommands": [],
+    "forbiddenModules": [],
+    "allowShell": true,
+    "allowExec": false,
+    "allowSubprocess": false
+  },
+  "execution": {
+    "maxDurationMs": 30000,
+    "maxOutputBytes": 1048576,
+    "maxMemoryMB": 512,
+    "allowInfiniteLoop": false
+  }
+}
