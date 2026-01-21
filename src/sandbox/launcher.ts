@@ -100,7 +100,7 @@ export class SandboxLauncher {
         }
     }
 
-    public spawnProcess(cmd: string[]) {
+    public spawnProcess(cmd: string[]): number {
         if (!libc) throw new Error("libc not loaded");
 
         // Step 1: Fork the first time (Child 1)

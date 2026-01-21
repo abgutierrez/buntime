@@ -2,6 +2,8 @@ import { shmOpen, shmUnlink, mmap, close } from "./ffi";
 import { SharedRingBuffer } from "./ringbuffer";
 import { unlink } from "node:fs";
 import { SandboxLauncher } from "../sandbox/launcher"; // Import Launcher
+import { NetworkProxy } from "../proxy";
+import { loadConfig } from "../config";
 
 export class IPCServer {
   private shmFd: number;
@@ -14,6 +16,7 @@ export class IPCServer {
   
   private socketPath: string;
   private server: any;
+  private proxy: NetworkProxy | null = null;
   private processHandle: ReturnType<typeof Bun.spawn> | undefined;
   private sandboxPid: number | undefined; // Store PID for manual management
   private onMessage?: (data: Uint8Array) => void;
@@ -90,12 +93,33 @@ export class IPCServer {
 
     const args = ["python3", pythonScript, this.socketPath, this.shmName, this.shmSize.toString()];
 
+    // Load configuration to check for network settings
+    const config = await loadConfig();
+
+    if (config.network.enabled) {
+        // Start Proxy
+        this.proxy = new NetworkProxy(config, 8080);
+        this.proxy.start();
+        console.log("[Bun] Network Proxy started on port 8080");
+        
+        // We set environment variables for the subprocess, but for the sandbox case,
+        // we might need to rely on the wrapper or ensure they are passed down.
+        // For now, python requests/urllib respects these vars automatically if set in the env.
+        process.env.HTTP_PROXY = "http://169.254.1.1:8080";
+        process.env.HTTPS_PROXY = "http://169.254.1.1:8080";
+    }
+
     if (process.platform === "linux") {
         try {
             console.log("[Bun] Using SandboxLauncher (Linux detected)");
             const launcher = new SandboxLauncher();
             this.sandboxPid = launcher.spawnProcess(args);
             console.log(`[Bun] Sandbox Spawned Python PID ${this.sandboxPid}`);
+
+            if (config.network.enabled && this.sandboxPid > 0) {
+                 await this.setupNetwork(this.sandboxPid);
+            }
+
         } catch (e: any) {
             console.warn(`[Bun] Sandbox failed (${e.message}), falling back to Bun.spawn`);
             this.processHandle = Bun.spawn(args, {
@@ -113,6 +137,39 @@ export class IPCServer {
         });
         console.log(`[Bun] Spawned Python PID ${this.processHandle.pid}`);
     }
+  }
+
+  private async setupNetwork(pid: number) {
+      // Create veth pair
+      // ip link add veth-bun type veth peer name veth-sb
+      await Bun.spawn(["ip", "link", "add", "veth-bun", "type", "veth", "peer", "name", "veth-sb"]).exited;
+      
+      // Move veth-sb to sandbox namespace
+      // ip link set veth-sb netns PID
+      await Bun.spawn(["ip", "link", "set", "veth-sb", "netns", pid.toString()]).exited;
+      
+      // Configure host side
+      // ip addr add 169.254.1.1/30 dev veth-bun
+      await Bun.spawn(["ip", "addr", "add", "169.254.1.1/30", "dev", "veth-bun"]).exited;
+      
+      // ip link set veth-bun up
+      await Bun.spawn(["ip", "link", "set", "veth-bun", "up"]).exited;
+      
+      // Configure sandbox side using nsenter
+      // nsenter -t PID -n ip addr add 169.254.1.2/30 dev veth-sb
+      await Bun.spawn(["nsenter", "-t", pid.toString(), "-n", "ip", "addr", "add", "169.254.1.2/30", "dev", "veth-sb"]).exited;
+      
+      // nsenter -t PID -n ip link set veth-sb up
+      await Bun.spawn(["nsenter", "-t", pid.toString(), "-n", "ip", "link", "set", "veth-sb", "up"]).exited;
+      
+      // nsenter -t PID -n ip link set lo up
+      await Bun.spawn(["nsenter", "-t", pid.toString(), "-n", "ip", "link", "set", "lo", "up"]).exited;
+      
+      // Add default route inside sandbox
+      // nsenter -t PID -n ip route add default via 169.254.1.1
+      await Bun.spawn(["nsenter", "-t", pid.toString(), "-n", "ip", "route", "add", "default", "via", "169.254.1.1"]).exited;
+      
+      console.log(`[Bun] Network Configured for PID ${pid}`);
   }
   
   handleData() {
