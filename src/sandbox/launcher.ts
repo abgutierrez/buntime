@@ -126,7 +126,7 @@ export class SandboxLauncher {
         if (res !== 0) {
              // We can't easily log to JS console here as we are in a forked process sharing stdout
              // But stdout is inherited, so console.error might work or mix
-             const err = `[Sandbox] unshare failed: ${res}\n`;
+             const err = `[Sandbox] unshare failed: ${res} (Hint: Docker requires --privileged or --cap-add=SYS_ADMIN)\n`;
              process.stdout.write(err);
              libc.symbols._exit(1);
         }

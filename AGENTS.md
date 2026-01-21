@@ -20,10 +20,10 @@ This repository uses **Bun** as the runtime, package manager, and bundler. Follo
 - **Run in Docker** (Linux-only IPC):
   ```bash
   docker build -t bun-ipc-demo .
-  docker run -it --rm -p 3000:3000 bun-ipc-demo
+  docker run -it --rm --privileged -p 3000:3000 bun-ipc-demo
   # With tmux for persistent sessions:
   tmux new -s bun-ipc
-  docker run -it --rm -p 3000:3000 bun-ipc-demo
+  docker run -it --rm --privileged -p 3000:3000 bun-ipc-demo
   ```
 - **Run Tests**:
   ```bash
