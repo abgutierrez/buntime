@@ -1,0 +1,105 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Kernel-Level Execution Policy",
+    "description": "A security policy for sandboxing untrusted code, enforced at the kernel level.",
+    "type": "object",
+    "properties": {
+        "version": {
+            "description": "The policy schema version.",
+            "type": "integer",
+            "const": 1
+        },
+        "plugins": {
+            "description": "Enable or disable specific kernel-level enforcement plugins.",
+            "type": "object",
+            "properties": {
+                "namespaces": { "type": "boolean", "default": true },
+                "landlock": { "type": "boolean", "default": true },
+                "seccomp": { "type": "boolean", "default": true }
+            },
+            "required": ["namespaces", "landlock", "seccomp"]
+        },
+        "defaults": {
+            "description": "Default actions to take when no specific rule matches.",
+            "type": "object",
+            "properties": {
+                "fs": { "enum": ["allow", "deny"], "default": "deny" },
+                "net": { "enum": ["allow", "deny"], "default": "deny" },
+                "exec": { "enum": ["allow", "deny"], "default": "deny" }
+            }
+        },
+        "fs": {
+            "description": "Filesystem access control rules (enforced by Landlock).",
+            "type": "object",
+            "properties": {
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action": { "enum": ["allow", "deny", "warn"], "default": "allow" },
+                            "path": { "type": "string" },
+                            "perms": {
+                                "type": "array",
+                                "items": { "enum": ["read_file", "write_file", "execute", "read_dir", "write_dir", "remove_dir", "remove_file", "make_char", "make_dir", "make_reg", "make_sock", "make_fifo", "make_block", "make_sym"] }
+                            }
+                        },
+                        "required": ["path", "perms"]
+                    }
+                }
+            }
+        },
+        "net": {
+            "description": "Network access control rules (enforced by seccomp-unotify on connect/sendto).",
+            "type": "object",
+            "properties": {
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action": { "enum": ["allow", "deny", "warn"] },
+                            "proto": { "enum": ["tcp", "udp"] },
+                            "cidr": { "type": "string" },
+                            "ports": { "type": "string", "description": "e.g., '80', '443', '8000-9000'" }
+                        },
+                        "required": ["action", "proto", "cidr", "ports"]
+                    }
+                }
+            }
+        },
+        "exec": {
+            "description": "Process execution control rules (enforced by seccomp-unotify on execve/execveat).",
+            "type": "object",
+            "properties": {
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action": { "enum": ["allow", "deny", "warn"] },
+                            "path": { "type": "string" },
+                            "sha256": { "type": "string" }
+                        },
+                        "required": ["action", "path"]
+                    }
+                }
+            }
+        },
+        "antiEscape": {
+            "description": "Rules to block syscalls commonly used for container escapes or privilege escalation.",
+            "type": "object",
+            "properties": {
+                "denySyscalls": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "default": [
+                        "ptrace", "bpf", "mount", "umount2", "setns", "kexec_load",
+                        "init_module", "finit_module", "perf_event_open", "keyctl", "add_key"
+                    ]
+                }
+            }
+        }
+    },
+    "required": ["version", "plugins", "defaults"]
+}
