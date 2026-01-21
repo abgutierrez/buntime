@@ -4,6 +4,7 @@ import { unlink } from "node:fs";
 import { SandboxLauncher } from "../sandbox/launcher"; // Import Launcher
 import { NetworkProxy } from "../proxy";
 import { loadConfig } from "../config";
+import { join } from "path";
 
 export class IPCServer {
   private shmFd: number;
@@ -49,7 +50,10 @@ export class IPCServer {
     this.py2bun.head = 0;
     this.py2bun.tail = 0;
 
-    this.socketPath = `/tmp/bun-python-${Math.random().toString(36).slice(2)}.sock`;
+    // Use a socket in the current directory to ensure visibility in the sandbox
+    // (Since we mount process.cwd() into the sandbox)
+    // Avoids issues with /tmp recursion or isolation
+    this.socketPath = join(process.cwd(), `bun-${Math.random().toString(36).slice(2)}.sock`);
   }
   
   async start(pythonScript: string) {
