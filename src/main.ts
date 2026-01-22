@@ -49,7 +49,7 @@ async function initialize() {
         const scriptPath = join(process.cwd(), "src/worker.py");
         console.log(`[Main] Starting IPC Server with script: ${scriptPath}`);
         
-        await ipcServer.start(scriptPath);
+        await ipcServer.start(scriptPath, config);
 
         // Start stats loop
         setInterval(() => {

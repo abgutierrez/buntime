@@ -3,7 +3,7 @@ import { SharedRingBuffer } from "./ringbuffer";
 import { unlink } from "node:fs";
 import { SandboxLauncher } from "../sandbox/launcher"; // Import Launcher
 import { NetworkProxy } from "../proxy";
-import { loadConfig } from "../config";
+import { type SandboxConfig } from "../config";
 import { join } from "path";
 
 export class IPCServer {
@@ -56,7 +56,7 @@ export class IPCServer {
     this.socketPath = join(process.cwd(), `bun-${Math.random().toString(36).slice(2)}.sock`);
   }
   
-  async start(pythonScript: string) {
+  async start(pythonScript: string, config: SandboxConfig) {
     console.log("[Bun] Starting IPC Server...");
 
     try { unlink(this.socketPath, () => {}); } catch {}
@@ -103,9 +103,6 @@ export class IPCServer {
         "PYTHONUNBUFFERED": "1"
     };
 
-    // Load configuration to check for network settings
-    const config = await loadConfig();
-
     if (config.network.enabled) {
         // Start Proxy
         this.proxy = new NetworkProxy(config, 8080);
@@ -115,6 +112,8 @@ export class IPCServer {
         // Configure Proxy Environment Variables
         env["HTTP_PROXY"] = "http://169.254.1.1:8080";
         env["HTTPS_PROXY"] = "http://169.254.1.1:8080";
+        env["http_proxy"] = "http://169.254.1.1:8080";
+        env["https_proxy"] = "http://169.254.1.1:8080";
         // Also set NO_PROXY for localhost/127.0.0.1 just in case, though we have no localhost in sandbox
         env["NO_PROXY"] = "localhost,127.0.0.1";
     }
@@ -136,6 +135,7 @@ export class IPCServer {
                 stdin: "inherit",
                 stdout: "inherit",
                 stderr: "inherit",
+                env,
             });
             console.log(`[Bun] Spawned Python PID ${this.processHandle.pid}`);
         }
@@ -144,6 +144,7 @@ export class IPCServer {
             stdin: "inherit",
             stdout: "inherit",
             stderr: "inherit",
+            env,
         });
         console.log(`[Bun] Spawned Python PID ${this.processHandle.pid}`);
     }
@@ -243,7 +244,6 @@ export class IPCServer {
     if (this.processHandle) this.processHandle.kill();
     if (this.sandboxPid) {
         try {
-            // @ts-ignore
             process.kill(this.sandboxPid, "SIGKILL");
         } catch {}
     }
