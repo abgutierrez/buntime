@@ -1,12 +1,13 @@
 # Agent Instructions for python-ipc-bun
 
-This repo implements a kernel-level sandbox and IPC system where Bun is the supervisor
-and Python is the untrusted worker. Follow these rules unless a task explicitly says otherwise.
+This repo implements a kernel-level sandbox and IPC system where Bun is the
+supervisor and Python is the untrusted worker. Follow these rules unless a task
+explicitly says otherwise.
 
 ## Architecture Overview
 
-- Supervisor (Bun): manages lifecycle, enforces policies, proxies network traffic.
-- Worker (Python): executes untrusted code in Linux namespaces or as a raw process in dev.
+- Supervisor (Bun): lifecycle, policy enforcement, network proxy.
+- Worker (Python): executes untrusted code in Linux namespaces or raw process.
 - Data plane: shared memory ring buffer via `bun:ffi`.
 - Control plane: Unix domain sockets for READY/DATA/STOP signaling.
 
@@ -17,10 +18,14 @@ and Python is the untrusted worker. Follow these rules unless a task explicitly 
 bun install
 ```
 
+### Build (local shared memory library)
+```bash
+gcc -shared -o libshm.so -fPIC src/shm.c -lrt
+```
+
 ### Run (local)
 ```bash
 bun src/main.ts
-# Hot reload
 bun --hot ./src/main.ts
 ```
 
@@ -35,16 +40,22 @@ docker build -t bun-ipc-demo .
 docker run --rm --privileged -p 3000:3000 bun-ipc-demo
 ```
 
-### Scripts (package.json)
+### Docker Compose (preferred for Linux sandbox)
 ```bash
 bun run app:docker
 bun run app:docker:watch
+```
+
+### CLI (pod/runner)
+```bash
+bunx python-ipc-bun run --allow-net=github.com main.ts
+bunx python-ipc-bun init-policy --allow-read=/tmp > my-policy.json
+```
+
+### Scripts (package.json)
+```bash
 bun run test:docker
 bun run test:docker:watch
-bun run examples:matrix
-bun run examples:matrix:comprehensive
-bun run bench:compare
-bun run bench:report
 bun run test:comprehensive
 bun run test:comprehensive:nopolicy
 bun run test:comprehensive:default
@@ -52,13 +63,10 @@ bun run test:comprehensive:fs
 bun run test:comprehensive:net
 bun run test:comprehensive:exec
 bun run test:combinations
-```
-
-## Build
-
-### Shared memory C library
-```bash
-gcc -shared -o libshm.so -fPIC src/shm.c -lrt
+bun run examples:matrix
+bun run examples:matrix:comprehensive
+bun run bench:compare
+bun run bench:report
 ```
 
 ## Tests
@@ -75,13 +83,15 @@ bun test -t "pattern"
 
 # Watch mode
 bun test --watch
+```
 
-# Docker integration tests (Linux-only features)
+### Docker Integration Tests (Linux-only features)
+```bash
 bun run test:docker
 bun run test:docker:watch
 ```
 
-Optional UI E2E flow (if Playwright tests exist; see TESTING_PLAN.md):
+### Optional UI E2E (if Playwright tests exist; see TESTING_PLAN.md)
 ```bash
 bunx playwright test src/e2e/
 ```
@@ -89,7 +99,7 @@ bunx playwright test src/e2e/
 ## Lint / Format / Typecheck
 
 - No ESLint/Prettier/Biome config found.
-- No dedicated typecheck script. If needed and TypeScript is available:
+- No dedicated typecheck script. If needed:
   `bunx tsc -p tsconfig.json`
 
 ## Code Style and Conventions
@@ -107,8 +117,8 @@ bunx playwright test src/e2e/
 - Avoid `any` and do not suppress errors with `@ts-ignore` or `@ts-expect-error`.
 
 ### Naming
-- Classes: PascalCase (`IPCServer`, `SharedRingBuffer`).
-- Functions/variables: camelCase.
+- Classes and types: PascalCase (`IPCServer`, `PolicyLoader`).
+- Functions and variables: camelCase.
 - Constants: UPPER_SNAKE_CASE.
 
 ### Error Handling and Logging
@@ -122,6 +132,7 @@ bunx playwright test src/e2e/
   - `[CLI]` or `[Main]` entrypoints
 
 ### Formatting
+- 2-space indentation is common in source files.
 - Keep lines readable (aim for ~100 chars where possible).
 - Prefer early returns to deep nesting.
 - Use `const` by default; `let` only when reassigned.
@@ -170,6 +181,8 @@ bunx playwright test src/e2e/
   - `policies/`: JSON security policies
   - `tests/`: Bun test files
 - `example/`: policy matrix and benchmark scripts
+- `docs/specs/cli.md`: CLI usage and flag precedence
+- `TESTING_PLAN.md`: integration and UI testing guidance
 - `libshm.so`: compiled shared memory library (required at runtime)
 
 ## Cursor/Copilot Rules

@@ -6,8 +6,8 @@
     "seccomp": true
   },
   "defaults": {
-    "fs": "deny",
-    "net": "deny",
-    "exec": "deny"
+    "fs": "allow",
+    "net": "allow",
+    "exec": "allow"
   }
 }

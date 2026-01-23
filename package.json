@@ -14,6 +14,8 @@
     "test:docker": "docker compose run --rm test bun test",
     "test:docker:watch": "docker compose watch",
     "bench:compare": "bun example/bench/compare.ts",
+    "bench:policy": "bun example/bench/policy_compare.ts",
+    "bench:security": "bun example/bench/security_compare.ts",
     "bench:report": "bun example/bench/report.ts",
     "test:comprehensive": "ENVIRONMENT=ALL WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",
     "test:comprehensive:nopolicy": "ENVIRONMENT=NO_POLICY WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",

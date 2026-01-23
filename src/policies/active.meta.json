@@ -4,9 +4,9 @@
   ],
   "policyCount": 1,
   "defaults": {
-    "fs": "deny",
-    "net": "deny",
-    "exec": "deny"
+    "fs": "allow",
+    "net": "allow",
+    "exec": "allow"
   },
   "rules": {
     "fs": 0,
@@ -20,5 +20,5 @@
     "events": []
   },
   "source": "boot",
-  "appliedAt": "2026-01-23T14:37:30.926Z"
+  "appliedAt": "2026-01-23T20:28:39.136Z"
 }
