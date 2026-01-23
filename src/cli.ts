@@ -11,7 +11,7 @@ import {
   buildPolicyFromFlags,
   type CliPolicyFlags,
 } from "./cli/policy";
-import { startDebugUi } from "./debug-ui/server";
+import { startDebugUi } from "../example/debug-ui/server";
 import type { SandboxConfig } from "./config";
 
 type Command = "run" | "init-policy" | "help";

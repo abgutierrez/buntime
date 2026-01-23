@@ -1,7 +1,7 @@
 import { join } from "path";
 import indexHtml from "./index.html";
 import { exampleCatalog } from "./exampleCatalog";
-import type { Supervisor, SupervisorEvent } from "../supervisor/supervisor";
+import type { Supervisor, SupervisorEvent } from "../../src/supervisor/supervisor";
 
 export interface DebugUiOptions {
   port?: number;

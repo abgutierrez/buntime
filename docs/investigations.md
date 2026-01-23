@@ -1,8 +1,9 @@
 # Investigations and Ideas: Secure Bun Sandbox + IPC
 
 This document captures the investigations so far and continues with two threads:
-1) how a Bun permissions model could integrate into runtime APIs, and
-2) use-case framing with clear boundaries.
+
+1. how a Bun permissions model could integrate into runtime APIs, and
+2. use-case framing with clear boundaries.
 
 All speculative content is marked as SPECULATIVE.
 
@@ -15,6 +16,7 @@ All speculative content is marked as SPECULATIVE.
 - Telemetry uses eBPF tracing (bpftrace) for audit-only syscall visibility.
 
 Key implementation surfaces investigated:
+
 - `src/sandbox/launcher.ts`: namespace, chroot, mount, fork/exec via `bun:ffi`
 - `src/ipc/server.ts`: IPC control plane + veth
 - `src/ipc/ringbuffer.ts` and `src/worker.py`: shared memory ring buffer + policy hooks
@@ -32,11 +34,12 @@ Key implementation surfaces investigated:
 - Workers provide JS runtime isolation only; they do not restrict OS access.
 
 Evidence:
+
 - Bun runtime docs for APIs like `Bun.serve()` and `Bun.build()` contain no permission controls.
-- Open issues for permissions/sandbox support: https://github.com/oven-sh/bun/issues/6617
-- AI sandboxing discussion: https://github.com/oven-sh/bun/issues/25929
-- Bun shell safety guidance: https://bun.com/docs/runtime/shell
-- Bun Workers: https://bun.com/docs/runtime/workers
+- Open issues for permissions/sandbox support:[https://github.com/oven-sh/bun/issues/6617]
+- AI sandboxing discussion: [https://github.com/oven-sh/bun/issues/25929]
+- Bun shell safety guidance:[https://bun.com/docs/runtime/shell]
+- Bun Workers: [https://bun.com/docs/runtime/workers]
 
 ### Integration idea
 
@@ -45,11 +48,13 @@ Runtime checks provide early, user-facing errors and policy compliance; kernel c
 provide the hard boundary that cannot be bypassed by a compromised runtime.
 
 Security layers:
+
 - Runtime permission checks: enforce allow/deny before operations.
 - Kernel sandboxing: namespaces, seccomp, landlock to contain escape vectors.
 - Observability: audit via eBPF or seccomp-unotify (audit-only or enforce).
 
 Where a hypothetical `Bun.sandbox()` might fit:
+
 - `Bun.serve()` to scope request handlers
 - `Bun.build()` to scope bundler file access
 - `Bun.spawn()` to scope child processes
@@ -92,19 +97,19 @@ const policy = Bun.sandbox({
     net: ["api.example.com:443"],
     read: ["./data"],
     write: ["/tmp/scratch"],
-    env: ["NODE_ENV"]
+    env: ["NODE_ENV"],
   },
   deny: {
     net: ["10.0.0.0/8", "169.254.0.0/16"],
     read: ["/etc", "/proc"],
-    exec: ["/bin/sh"]
+    exec: ["/bin/sh"],
   },
   kernel: {
     namespaces: ["pid", "mnt", "net"],
     seccomp: "default-deny",
     landlock: true,
-    audit: "ebpf" // or "seccomp-unotify"
-  }
+    audit: "ebpf", // or "seccomp-unotify"
+  },
 });
 ```
 
@@ -118,7 +123,7 @@ Bun.serve({
   fetch(req) {
     // Handler is subject to policy
     return new Response("ok");
-  }
+  },
 });
 ```
 
@@ -129,7 +134,7 @@ Bun.serve({
 await Bun.build({
   entrypoints: ["./untrusted/index.ts"],
   outdir: "./dist",
-  sandbox: policy
+  sandbox: policy,
 });
 ```
 
@@ -139,7 +144,7 @@ await Bun.build({
 // SPECULATIVE
 const proc = Bun.spawn(["python3", "worker.py"], {
   sandbox: policy,
-  cwd: "/app"
+  cwd: "/app",
 });
 ```
 
@@ -148,7 +153,7 @@ const proc = Bun.spawn(["python3", "worker.py"], {
 ```ts
 // SPECULATIVE
 const worker = new Worker("./worker.ts", {
-  sandbox: policy
+  sandbox: policy,
 });
 ```
 
@@ -180,11 +185,11 @@ bunx --sandbox=policy.json some-cli
 
 ## References
 
-- Bun API docs (runtime): https://bun.com/docs/runtime/bun-apis
-- Bun server guide: https://bun.com/docs/guides/http/simple
-- Bun bundler: https://bun.com/docs/bundler/index
-- Bun macros (security model): https://bun.com/docs/bundler/macros
-- Bun workers: https://bun.com/docs/runtime/workers
-- Bun shell safety: https://bun.com/docs/runtime/shell
-- Permissions feature request: https://github.com/oven-sh/bun/issues/6617
-- Secure sandboxing discussion: https://github.com/oven-sh/bun/issues/25929
+- Bun API docs (runtime): [ https://bun.com/docs/runtime/bun-apis]
+- Bun server guide: [https://bun.com/docs/guides/http/simple]
+- Bun bundler: [https://bun.com/docs/bundler/index]
+- Bun macros (security model): [https://bun.com/docs/bundler/macros]
+- Bun workers: [https://bun.com/docs/runtime/workers]
+- Bun shell safety: [https://bun.com/docs/runtime/shell]
+- Permissions feature request: [https://github.com/oven-sh/bun/issues/6617]
+- Secure sandboxing discussion: [https://github.com/oven-sh/bun/issues/25929]

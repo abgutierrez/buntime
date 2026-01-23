@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Policy } from "./loader";
-import { buildPolicySetMeta, mergePolicies, validatePolicySetInput } from "./set";
+import type { Policy } from "../../../sandbox/policy/loader";
+import { buildPolicySetMeta, mergePolicies, validatePolicySetInput } from "../../../sandbox/policy/set";
 
 const basePolicy: Policy = {
     version: 1,

@@ -1,5 +1,97 @@
 import { SandboxConfig } from "./config";
 
+export type HostAccessDecision = {
+    allowed: boolean;
+    isAllowed: boolean;
+    isDenied: boolean;
+};
+
+type ConnectTarget = {
+    hostname: string;
+    port: number;
+};
+
+export type HttpTarget = {
+    hostname: string;
+    port: number;
+    requestLine: string;
+};
+
+export function evaluateHostAccess(
+    hostname: string,
+    allowed: Set<string>,
+    denied: Set<string>,
+): HostAccessDecision {
+    const normalizedHost = hostname.trim();
+    const variants = normalizedHost
+        ? [normalizedHost, `www.${normalizedHost}`]
+        : [];
+    const isDenied = denied.has("*") || variants.some((variant) => denied.has(variant));
+    const isAllowed = allowed.has("*") || variants.some((variant) => allowed.has(variant));
+    return {
+        allowed: isAllowed && !isDenied,
+        isAllowed,
+        isDenied,
+    };
+}
+
+export function parseConnectTarget(target: string): ConnectTarget | null {
+    if (!target) return null;
+    const [rawHost, rawPort] = target.split(":");
+    const hostname = rawHost?.trim();
+    if (!hostname) return null;
+    const parsedPort = Number.parseInt(rawPort ?? "", 10);
+    const port = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 443;
+    return { hostname, port };
+}
+
+function parseHostHeader(lines: string[]): ConnectTarget | null {
+    const hostHeader = lines.find((line) => line.toLowerCase().startsWith("host:"));
+    if (!hostHeader) return null;
+    const hostValue = hostHeader.slice(5).trim();
+    if (!hostValue) return null;
+    const [headerHost, headerPort] = hostValue.split(":");
+    const hostname = headerHost?.trim() ?? "";
+    if (!hostname) return null;
+    const parsedPort = Number.parseInt(headerPort ?? "", 10);
+    const port = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 80;
+    return { hostname, port };
+}
+
+export function parseHttpRequestTarget(requestLine: string, lines: string[]): HttpTarget | null {
+    const requestParts = requestLine.split(" ");
+    const method = requestParts[0] || "";
+    const target = requestParts[1] || "";
+    const version = requestParts[2] || "HTTP/1.1";
+
+    let hostname = "";
+    let port = 80;
+    let newRequestLine = requestLine;
+
+    if (target.startsWith("http://")) {
+        try {
+            const url = new URL(target);
+            hostname = url.hostname;
+            port = Number.parseInt(url.port, 10) || 80;
+            const path = `${url.pathname || "/"}${url.search || ""}`;
+            newRequestLine = `${method} ${path} ${version}`;
+        } catch (e) {
+            console.warn(`[Proxy] Invalid URL in HTTP request: ${target}`);
+        }
+    }
+
+    if (!hostname) {
+        const host = parseHostHeader(lines);
+        if (host) {
+            hostname = host.hostname;
+            port = host.port;
+        }
+    }
+
+    if (!hostname) return null;
+    return { hostname, port, requestLine: newRequestLine };
+}
+
 export class NetworkProxy {
     private config: SandboxConfig;
     private server: any;
@@ -43,7 +135,7 @@ export class NetworkProxy {
             port: this.port,
             socket: {
                 data(socket, data) {
-                    const s = socket as any;
+                    const s = socket as { remoteSocket?: { write: (chunk: Uint8Array) => void; end: () => void }; buffer?: Uint8Array | null };
                     
                     if (s.remoteSocket) {
                         try {
@@ -73,15 +165,18 @@ export class NetworkProxy {
                     if (requestLine.startsWith("CONNECT ")) {
                         const parts = requestLine.split(" ");
                         const target = parts[1] || "";
-                        const [rawHost, rawPort] = target.split(":");
-                        const hostname = rawHost ?? "";
-                        const port = parseInt(rawPort ?? "") || 443;
+                        const parsed = parseConnectTarget(target);
+                        if (!parsed) {
+                            socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
+                            socket.end();
+                            return;
+                        }
+                        const { hostname, port } = parsed;
 
                         console.log(`[Proxy] CONNECT ${hostname}:${port}`);
 
-                        const isDenied = denied.has("*") || denied.has(hostname) || denied.has("www." + (hostname || ""));
-                        const isAllowed = allowed.has("*") || allowed.has(hostname) || allowed.has("www." + (hostname || ""));
-                        if (isDenied || !isAllowed) {
+                        const decision = evaluateHostAccess(hostname, allowed, denied);
+                        if (!decision.allowed) {
                             console.warn(`[Proxy] BLOCKED: ${hostname}`);
                             socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
                             socket.end();
@@ -122,48 +217,18 @@ export class NetworkProxy {
                         return;
                     }
 
-                    const requestParts = requestLine.split(" ");
-                    const method = requestParts[0] || "";
-                    const target = requestParts[1] || "";
-                    const version = requestParts[2] || "HTTP/1.1";
-
-                    let hostname = "";
-                    let port = 80;
-                    let newRequestLine = requestLine;
-
-                    if (target.startsWith("http://")) {
-                        try {
-                            const url = new URL(target);
-                            hostname = url.hostname;
-                            port = parseInt(url.port) || 80;
-                            const path = `${url.pathname || "/"}${url.search || ""}`;
-                            newRequestLine = `${method} ${path} ${version}`;
-                        } catch (e) {
-                            console.warn(`[Proxy] Invalid URL in HTTP request: ${target}`);
-                        }
-                    }
-
-                    if (!hostname) {
-                        const hostHeader = lines.find((line) => line.toLowerCase().startsWith("host:"));
-                        if (hostHeader) {
-                            const hostValue = hostHeader.split(":")[1]?.trim() ?? "";
-                            const [headerHost, headerPort] = hostValue.split(":");
-                            hostname = headerHost ?? "";
-                            port = parseInt(headerPort ?? "") || 80;
-                        }
-                    }
-
-                    if (!hostname) {
+                    const parsedRequest = parseHttpRequestTarget(requestLine, lines);
+                    if (!parsedRequest) {
                         socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
                         socket.end();
                         return;
                     }
+                    const { hostname, port, requestLine: newRequestLine } = parsedRequest;
 
                     console.log(`[Proxy] HTTP Request: ${hostname}`);
 
-                    const isDenied = denied.has("*") || denied.has(hostname) || denied.has("www." + hostname);
-                    const isAllowed = allowed.has("*") || allowed.has(hostname) || allowed.has("www." + hostname);
-                    if (isDenied || !isAllowed) {
+                    const decision = evaluateHostAccess(hostname, allowed, denied);
+                    if (!decision.allowed) {
                         console.warn(`[Proxy] BLOCKED: ${hostname}`);
                         socket.write("HTTP/1.1 403 Forbidden\r\nContent-Length: 19\r\n\r\nProxy Access Denied");
                         socket.end();

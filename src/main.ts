@@ -1,5 +1,5 @@
 import { Supervisor } from "./supervisor/supervisor";
-import { startDebugUi } from "./debug-ui/server";
+import { startDebugUi } from "../example/debug-ui/server";
 
 const args = new Set(Bun.argv.slice(2));
 const debugUiEnabled = args.has("--debug-ui") || process.env.DEBUG_UI === "1";
