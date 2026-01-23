@@ -1,8 +1,7 @@
 import Ajv from "ajv";
 import policySchema from "./schema.json";
 import path from "path";
-// @ts-ignore - node-cidr uses CommonJS exports
-const nodeCidr = require("node-cidr");
+import nodeCidr from "node-cidr";
 
 export type FsPerm = "read_file" | "write_file" | "execute" | "read_dir" | "write_dir" | "remove_dir" | "remove_file" | "make_char" | "make_dir" | "make_reg" | "make_sock" | "make_fifo" | "make_block" | "make_sym";
 export type Action = "allow" | "deny" | "warn";
@@ -27,6 +26,11 @@ export interface ExecRule {
     sha256?: string;
 }
 
+export interface AuditPolicy {
+    enabled: boolean;
+    events: string[];
+}
+
 export interface Policy {
     version: 1;
     plugins: {
@@ -43,6 +47,7 @@ export interface Policy {
     net?: { rules: NetRule[] };
     exec?: { rules: ExecRule[] };
     antiEscape?: { denySyscalls: string[] };
+    audit?: AuditPolicy;
 }
 
 export interface PortRange {
@@ -61,9 +66,11 @@ export interface NormalizedPolicy extends Omit<Policy, 'net'> {
 
 export class PolicyLoader {
     private ajv: Ajv;
+    private validator: ReturnType<Ajv["compile"]>;
 
     constructor() {
         this.ajv = new Ajv({ useDefaults: true });
+        this.validator = this.ajv.compile<Policy>(policySchema);
     }
 
     public async load(policyPath: string): Promise<NormalizedPolicy> {
@@ -73,14 +80,15 @@ export class PolicyLoader {
         }
         const policy = await policyFile.json() as Policy;
 
-        this.validate(policy);
+        this.validatePolicy(policy);
         return this.normalize(policy);
     }
 
-    private validate(policy: Policy): void {
-        const validate = this.ajv.compile<Policy>(policySchema);
-        if (!validate(policy)) {
-            const errorMessages = (validate.errors ?? []).map(e => `${e.instancePath} ${e.message}`).join(', ');
+    public validatePolicy(policy: Policy): void {
+        if (!this.validator(policy)) {
+            const errorMessages = (this.validator.errors ?? [])
+                .map((error) => `${error.instancePath} ${error.message}`)
+                .join(", ");
             throw new Error(`Policy validation failed: ${errorMessages}`);
         }
 

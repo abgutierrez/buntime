@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "plugins": {
+    "namespaces": true,
+    "landlock": true,
+    "seccomp": true
+  },
+  "defaults": {
+    "fs": "allow",
+    "net": "allow",
+    "exec": "deny"
+  },
+  "exec": {
+    "rules": [
+      {
+        "action": "allow",
+        "path": "/usr/bin/python3"
+      },
+      {
+        "action": "allow",
+        "path": "/usr/bin/python3.12"
+      }
+    ]
+  }
+}

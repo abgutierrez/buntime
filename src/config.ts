@@ -35,8 +35,8 @@ export async function loadConfig(path: string = "config.json"): Promise<SandboxC
         security: { mode: "strict" },
         network: {
             enabled: true,
-            policy: "deny_all",
-            allow_list: [],
+            policy: "allow_list",
+            allow_list: ["*"],
             rate_limit: 5
         },
         filesystem: { allow_write: false },

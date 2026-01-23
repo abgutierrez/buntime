@@ -1,0 +1,58 @@
+{
+  "defaults": {
+    "timeoutMs": 8000,
+    "idleMs": 400
+  },
+  "cases": [
+    {
+      "name": "hello_world unrestricted",
+      "example": "hello_world.py",
+      "policies": [],
+      "expect": {
+        "allow": ["Calculation: 25 \\* 4 = 100"]
+      }
+    },
+    {
+      "name": "fs allow /tmp",
+      "example": "fs_allow_tmp.py",
+      "policies": ["fs-allowlist.json"],
+      "expect": {
+        "allow": ["/tmp entries"]
+      }
+    },
+    {
+      "name": "fs deny /etc/hosts",
+      "example": "fs_deny_etc.py",
+      "policies": ["fs-allowlist.json"],
+      "expect": {
+        "deny": ["/etc/hosts access denied"]
+      }
+    },
+    {
+      "name": "net rfc1918 blocked",
+      "example": "net_rfc1918_block.py",
+      "policies": ["net-egress.json"],
+      "idleMs": 2500,
+      "timeoutMs": 8000,
+      "expect": {
+        "deny": ["RFC1918 connection blocked"]
+      }
+    },
+    {
+      "name": "exec deny /bin/sh",
+      "example": "exec_deny_shell.py",
+      "policies": ["exec-policy.json"],
+      "expect": {
+        "deny": ["/bin/sh exec denied"]
+      }
+    },
+    {
+      "name": "exec allow python",
+      "example": "exec_allow_python.py",
+      "policies": ["exec-policy.json"],
+      "expect": {
+        "allow": ["Python exec output: ok"]
+      }
+    }
+  ]
+}

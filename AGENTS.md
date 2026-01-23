@@ -1,189 +1,153 @@
 # Agent Instructions for python-ipc-bun
 
-This repository uses **Bun** as the runtime, package manager, and bundler. Follow these guidelines for all development tasks.
+This repo implements a kernel-level sandbox and IPC system where **Bun acts as the supervisor** and **Python acts as the untrusted worker**.
+Follow these rules unless a task explicitly says otherwise.
 
-## 1. Environment & Commands
+## Architecture Overview
 
-- **Runtime**: Use `bun` exclusively. Do not use `node`, `npm`, `yarn`, or `pnpm`.
-- **Install Dependencies**:
-  ```bash
-  bun install
-  ```
-- **Run Application**:
-  ```bash
-  bun run index.ts
-  # For development with hot reloading:
-  bun --hot ./index.ts
-  # Run with specific policy:
-  POLICY_FILE=src/policies/no-network.json bun run src/main.ts
-  ```
-- **Run in Docker** (Linux-only IPC):
-  ```bash
-  docker build -t bun-ipc-demo .
-  docker run -it --rm --privileged -p 3000:3000 bun-ipc-demo
-  # With tmux for persistent sessions:
-  tmux new -s bun-ipc
-  docker run -it --rm --privileged -p 3000:3000 bun-ipc-demo
-  ```
-- **Run Tests**:
-  ```bash
-  bun test
-  # Run a single test file:
-  bun test path/to/file.test.ts
-  # Run tests matching a pattern:
-  bun test -t "pattern"
-  ```
-- **Build**:
-  ```bash
-  # Build C library (run in Docker container):
-  gcc -shared -o libshm.so -fPIC src/shm.c -lrt
-  ```
+- **Supervisor (Bun)**: Manages lifecycle, enforces policies, proxies network traffic, and audits syscalls.
+- **Worker (Python)**: Executes untrusted code within a Linux namespace sandbox (or raw process in dev).
+- **Data Plane**: High-performance Shared Memory Ring Buffer (`src/ipc/ringbuffer.ts`) via `bun:ffi`.
+- **Control Plane**: Unix Domain Sockets for signaling (`READY`, `DATA`, `STOP`).
 
-## 2. Code Style & Conventions
+## Commands
 
-### Imports & Modules
-- Use **ES Modules** (`import` / `export`) exclusively.
-- **Do not** use CommonJS (`require`).
-- Use `verbatimModuleSyntax` (imports are preserved as-is).
-- **Filesystem**: Prefer `Bun.file()` over `node:fs`.
-  ```ts
-  // Good
-  const text = await Bun.file("path/to/file.txt").text();
+### Install
+```bash
+bun install
+```
 
-  // Avoid
-  import fs from "node:fs/promises";
-  const text = await fs.readFile("path/to/file.txt", "utf-8");
-  ```
+### Run (local)
+```bash
+bun src/main.ts
+# Hot reload
+bun --hot ./src/main.ts
+```
 
-### Bun-Native APIs (Mandatory)
-- **HTTP Server**: Use `Bun.serve()`. **Do NOT use Express, Fastify, or Hono** unless explicitly requested.
-  ```ts
-  Bun.serve({
-    fetch(req) {
-      return new Response("Hello World");
-    }
-  });
-  ```
-- **FFI (Foreign Function Interface)**: Use `bun:ffi` for C library bindings.
-  ```ts
-  import { dlopen, FFIType, ptr, type Pointer } from "bun:ffi";
+### Run with policy (local)
+```bash
+POLICY_FILE=src/policies/no-network.json bun src/main.ts
+```
 
-  const lib = dlopen("libshm.so", {
-    myFunction: {
-      args: [FFIType.i32, FFIType.ptr],
-      returns: FFIType.i32,
-    },
-  });
-  // Use toArrayBuffer for pointer casting
-  import { toArrayBuffer } from "bun:ffi";
-  const buffer = toArrayBuffer(ptrAddr as unknown as Pointer, 0, size);
-  ```
-- **SQLite**: Use `bun:sqlite`. **Do NOT use `better-sqlite3` or `sqlite3`**.
-- **Postgres**: Use `Bun.sql`. **Do NOT use `pg` or `postgres.js`**.
-- **Redis**: Use `Bun.redis`. **Do NOT use `ioredis`**.
-- **Shell Commands**: Use `Bun.$` instead of `child_process` or `execa`.
-  ```ts
-  import { $ } from "bun";
-  await $`ls -l`;
-  ```
-- **Environment Variables**: Bun loads `.env` automatically. **Do NOT use `dotenv`**.
+### Scripts (package.json)
+```bash
+bun run app:docker
+bun run app:docker:watch
+bun run examples:matrix
+bun run test:docker
+bun run test:docker:watch
+```
 
-### TypeScript Config
-- **Strict Mode**: Enabled. No `any` unless absolutely necessary.
-- **Target**: `ESNext`.
-- **Module Resolution**: `bundler`.
-- **No Emit**: `tsc` is for type checking only; Bun handles execution.
+### Docker (Linux-only IPC)
+```bash
+docker build -t bun-ipc-demo .
+docker run --rm --privileged -p 3000:3000 bun-ipc-demo
+```
+
+### Tests
+```bash
+bun test
+# Single test file
+bun test path/to/file.test.ts
+# Tests matching a pattern
+bun test -t "pattern"
+# Watch mode
+bun test --watch
+```
+
+### Build
+```bash
+# C shared library (used by IPC demo)
+gcc -shared -o libshm.so -fPIC src/shm.c -lrt
+```
+
+### Lint / Format / Typecheck
+- No ESLint/Prettier/Biome config found.
+- No dedicated typecheck script. If needed and TypeScript is available:
+  `bunx tsc -p tsconfig.json`
+
+## Code Style and Conventions
+
+### Imports and Modules
+- Use ESM (`import` / `export`) only.
+- Do not use CommonJS (`require`).
+- Keep imports grouped by origin: built-ins, external, internal.
+- Prefer explicit named imports over namespace imports.
+
+### Bun-Native APIs (mandatory)
+- HTTP server: `Bun.serve()` only. Do not introduce Express/Fastify/Hono.
+- Filesystem: prefer `Bun.file()` over `node:fs`.
+- FFI: use `bun:ffi` for C bindings (see `src/ipc/ffi.ts`).
+- Shell commands: `Bun.$` instead of `child_process`.
+- Environment variables: Bun loads `.env` automatically. Do not use dotenv.
+
+### TypeScript Configuration
+- Strict mode is enabled.
+- Target is `ESNext`, module resolution is `bundler`.
+- `noEmit` is true; Bun runs TS directly.
+- Avoid `any` unless unavoidable. Do not suppress errors with `@ts-ignore`.
+
+### Naming
+- Classes: PascalCase (`IPCServer`, `SharedRingBuffer`).
+- Functions/variables: camelCase.
+- Constants: UPPER_SNAKE_CASE.
+- Log prefixes: `[Bun]` for Bun-side, `[Python]` for Python-side logs, `[Audit]` for security events.
 
 ### Error Handling
-- Use standard `try/catch` blocks.
-- Return standard `Response` objects for HTTP errors in `Bun.serve`.
-- **IPC-specific**: Use prefixed log messages for debugging cross-process issues:
-  ```ts
-  console.log("[Bun] Starting IPC Server...");
-  console.error("[Bun] FFI Load Error:", e);
-  // In Python:
-  print(f"[Python] Connecting to {socket_path}...")
-  ```
+- Use `try/catch` blocks.
+- Log errors explicitly with context: `console.error("[Bun] Context error:", err)`.
+- Avoid empty catch blocks unless explicitly suppressing (e.g., `unlink` cleanup).
 
-### Naming Conventions
-- **Classes**: PascalCase (`IPCServer`, `SharedRingBuffer`)
-- **Methods/Variables**: camelCase
-- **Constants**: UPPER_SNAKE_CASE
-- **Log Prefixes**: Always use `[Bun]` for Bun-side and `[Python]` for Python-side logs
+### Formatting
+- Keep lines readable (aim for ~100 chars where possible).
+- Prefer early returns to deep nesting.
+- Use `const` by default; `let` only when reassigned.
 
-## 3. Testing Guidelines
-- Use the built-in `bun:test` module. **Do NOT use Jest, Vitest, or Mocha**.
-  ```ts
-  import { test, expect, describe } from "bun:test";
+## Testing Guidelines
 
-  describe("Math", () => {
-    test("addition", () => {
-      expect(1 + 1).toBe(2);
-    });
-  });
-  ```
-- Use `bun test --watch` for TDD workflows.
+- Use `bun:test` only.
+- Keep tests co-located with sources: `foo.ts` + `foo.test.ts`.
+- Prefer deterministic tests; avoid network access unless explicitly required.
+- Integration tests often require Docker (`bun run test:docker`) due to Linux-specific features.
 
-## 4. Python Integration (Linux-only)
-- **Shared Memory**: Python uses `multiprocessing.shared_memory` to access the same SHM regions as Bun.
-- **Communication**:
-  - **Data Plane**: Ring buffers in shared memory (length-framed messages: `[u32 len][payload]`)
-  - **Control Plane**: Unix Domain Sockets for signaling (`READY`, `DATA`, `STOP`)
-- **Code Execution**: Python worker accepts code strings via IPC, executes with `eval`/`exec`, and captures output.
-- **Python Style**:
-  - PEP 8 compliance (snake_case for functions/variables)
-  - Class names matching TS for symmetry (`SharedRingBuffer`)
-  - Struct packing for binary data: `struct.pack("<I", value)` (little-endian)
-  - Use `bytes()` conversion for `memoryview` before decode
-  - Custom file-like objects for stdout redirection
-- **Process Management**:
-  - Python spawned via `Bun.spawn()`
-  - Send `SIGINT` for interrupt: `processHandle.kill("SIGINT")`
-  - Cleanup: always `shm.close()` and `sock.close()` in `finally` blocks
+## Python Integration (Linux-only)
 
-## 5. Policy Enforcement & Execution Roles
+- Shared memory via `multiprocessing.shared_memory`.
+- Data plane: ring buffers using `[u32 len][payload]` framing.
+- Control plane: Unix domain sockets.
+- Python style: PEP8, snake_case, little-endian packing.
+- Cleanup resources in `finally` blocks.
 
-This project follows a supervisor-worker architecture for secure code execution.
+## Policy Model
 
-### Runtime Roles & Responsibilities
-- **Bun (Supervisor/Auditor)**: 
-  - Manages the lifecycle of Python worker processes.
-  - Acts as the primary auditor, enforcing security policies before and during execution.
-  - Controls system-level access, including a **deny-by-default** network policy.
-- **Python (Executor)**:
-  - Responsible for executing disk-loaded scripts and code snippets received via IPC.
-  - Operates within the resource and security constraints established by the Bun supervisor.
+- **Policies**: JSON files in `src/policies/` defining allowed/denied resources.
+- **Enforcement**: Bun checks these policies before proxying network or allowing syscalls (via seccomp).
+- **Missing Features**: Check `MISSING_FEATURES.md` before implementing new security features.
 
-### Policy Enforcement Approach
-- **Policy Templates**: Security constraints are defined using JSON templates (found in `src/policies/`).
-- **Enforcement Layer**: 
-  - Bun enforces high-level policies (network, file access, process environment).
-  - Python-side enforcement (e.g., restricted built-ins, restricted `import`) is planned as **future work**. Current security relies on the supervisor's constraints.
-- **Network Policy**: Deny-by-default. All network access must be explicitly permitted in the execution policy.
+## Frontend Notes
 
-## 6. Frontend Development
-- This project supports direct frontend bundling via Bun.
-- Use HTML imports with `Bun.serve()`.
-- **Do NOT use Vite, Webpack, or Create React App**.
-- Import CSS and TSX/JSX files directly into HTML or other TSX files.
-  ```ts
-  // Server-side
-  import index from "./index.html";
-  Bun.serve({ routes: { "/": index } });
-  ```
-  ```html
-  <!-- index.html -->
-  <script type="module" src="./frontend.tsx"></script>
-  ```
+- Use Bun HTML imports (`import indexHtml from "./public/index.html"`).
+- HTML can import TSX/JSX/CSS directly.
+- Keep UI logic in `src/public/` and favor minimal dependencies.
 
-## 7. Directory Structure
-- Keep the root clean.
-- Place source code in `src/` if the project grows (currently flat structure).
-- Tests should be co-located with source files (e.g., `user.ts` and `user.test.ts`).
+## Repository Layout
 
-## 8. Git & Commit Guidelines
-- **Commit Messages**: Use imperative mood (e.g., "Add feature", "Fix bug").
-- **Files to Ignore**: Ensure `node_modules`, `.env`, and build artifacts are in `.gitignore`.
+- `src/`: Source code.
+  - `ipc/`: Shared memory and socket logic.
+  - `sandbox/`: Linux namespace and policy enforcement.
+  - `policies/`: JSON security policies.
+  - `examples/`: Python scripts for testing policies.
+- `libshm.so`: Compiled C library for shared memory (must be present).
 
----
-*Generated by Sisyphus Agent based on CLAUDE.md and project configuration.*
+## Git and Workflow
+
+- Do not commit unless explicitly asked.
+- Avoid broad refactors during bugfixes; keep changes minimal.
+- Keep secrets out of the repo (`.env`, credentials, tokens).
+- If tests are failing before your changes, report them explicitly.
+- When adding new files, keep paths short and colocate with related code.
+
+## Cursor/Copilot Rules
+
+- No Cursor rules found (`.cursor/rules/` or `.cursorrules`).
+- No Copilot instructions found (`.github/copilot-instructions.md`).

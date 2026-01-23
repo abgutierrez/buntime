@@ -99,6 +99,18 @@
                     ]
                 }
             }
+        },
+        "audit": {
+            "description": "Audit logging controls for runtime events.",
+            "type": "object",
+            "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "events": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "default": ["connect", "openat", "execve"]
+                }
+            }
         }
     },
     "required": ["version", "plugins", "defaults"]

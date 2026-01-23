@@ -1,0 +1,37 @@
+services:
+  app:
+    build: .
+    working_dir: /app
+    command: bun --hot ./src/main.ts
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+    ports:
+      - "3000:3000"
+    develop:
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+        - action: rebuild
+          path: ./Dockerfile
+        - action: rebuild
+          path: ./bun.lock
+  test:
+    build: .
+    working_dir: /app
+    command: bun test
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+    develop:
+      watch:
+        - action: sync
+          path: ./
+          target: /app
+        - action: rebuild
+          path: ./Dockerfile
+        - action: rebuild
+          path: ./bun.lock

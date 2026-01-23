@@ -1,0 +1,24 @@
+{
+  "policyKeys": [
+    "exec-policy"
+  ],
+  "policyCount": 1,
+  "defaults": {
+    "fs": "allow",
+    "net": "allow",
+    "exec": "deny"
+  },
+  "rules": {
+    "fs": 0,
+    "net": 0,
+    "exec": 2,
+    "antiEscape": 0,
+    "total": 2
+  },
+  "audit": {
+    "enabled": false,
+    "events": []
+  },
+  "source": "apply",
+  "appliedAt": "2026-01-22T05:01:37.434Z"
+}

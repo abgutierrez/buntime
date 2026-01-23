@@ -1,7 +1,6 @@
 import { shmOpen, shmUnlink, mmap, close } from "./ffi";
 import { SharedRingBuffer } from "./ringbuffer";
 import { unlink } from "node:fs";
-import { SandboxLauncher } from "../sandbox/launcher"; // Import Launcher
 import { NetworkProxy } from "../proxy";
 import { type SandboxConfig } from "../config";
 import { join } from "path";
@@ -80,6 +79,15 @@ export class IPCServer {
                if (that.onStateChange) that.onStateChange("Ready", "READY");
             } else if (msg.trim() === "DATA") {
                that.handleData();
+            } else {
+               try {
+                   const payload = JSON.parse(msg);
+                   if (payload.type === "state" && that.onStateChange) {
+                       that.onStateChange(payload.event, "WORKER_EVENT");
+                   }
+               } catch {
+                   // Ignore non-JSON worker messages.
+               }
             }
           }
         },
@@ -103,24 +111,32 @@ export class IPCServer {
         "PYTHONUNBUFFERED": "1"
     };
 
+    let proxyEnabled = false;
     if (config.network.enabled) {
-        // Start Proxy
-        this.proxy = new NetworkProxy(config, 8080);
-        this.proxy.start();
-        console.log("[Bun] Network Proxy started on port 8080");
-        
-        // Configure Proxy Environment Variables
-        env["HTTP_PROXY"] = "http://169.254.1.1:8080";
-        env["HTTPS_PROXY"] = "http://169.254.1.1:8080";
-        env["http_proxy"] = "http://169.254.1.1:8080";
-        env["https_proxy"] = "http://169.254.1.1:8080";
-        // Also set NO_PROXY for localhost/127.0.0.1 just in case, though we have no localhost in sandbox
-        env["NO_PROXY"] = "localhost,127.0.0.1";
+        try {
+            // Start Proxy
+            this.proxy = new NetworkProxy(config, 8080);
+            this.proxy.start();
+            proxyEnabled = true;
+            console.log("[Bun] Network Proxy started on port 8080");
+        } catch (error: any) {
+            console.warn(`[Bun] Network Proxy failed to start: ${error?.message ?? error}`);
+        }
+        if (proxyEnabled) {
+            // Configure Proxy Environment Variables
+            env["HTTP_PROXY"] = "http://169.254.1.1:8080";
+            env["HTTPS_PROXY"] = "http://169.254.1.1:8080";
+            env["http_proxy"] = "http://169.254.1.1:8080";
+            env["https_proxy"] = "http://169.254.1.1:8080";
+            // Also set NO_PROXY for localhost/127.0.0.1 just in case, though we have no localhost in sandbox
+            env["NO_PROXY"] = "localhost,127.0.0.1";
+        }
     }
 
     if (process.platform === "linux") {
         try {
             console.log("[Bun] Using SandboxLauncher (Linux detected)");
+            const { SandboxLauncher } = await import("../sandbox/launcher");
             const launcher = new SandboxLauncher();
             this.sandboxPid = launcher.spawnProcess(args, env);
             console.log(`[Bun] Sandbox Spawned Python PID ${this.sandboxPid}`);

@@ -78,7 +78,7 @@ export class NetworkProxy {
 
                         console.log(`[Proxy] CONNECT ${hostname}:${port}`);
 
-                        if (!allowed.has(hostname) && !allowed.has("www." + (hostname || ""))) {
+                        if (!allowed.has("*") && !allowed.has(hostname) && !allowed.has("www." + (hostname || ""))) {
                             console.warn(`[Proxy] BLOCKED: ${hostname}`);
                             socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
                             socket.end();

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "plugins": {
+    "namespaces": true,
+    "landlock": true,
+    "seccomp": true
+  },
+  "defaults": {
+    "fs": "deny",
+    "net": "allow",
+    "exec": "allow"
+  },
+  "fs": {
+    "rules": [
+      {
+        "action": "allow",
+        "path": "/tmp",
+        "perms": ["read_file", "write_file", "read_dir", "write_dir"]
+      },
+      {
+        "action": "allow",
+        "path": "/app",
+        "perms": ["read_file", "read_dir", "execute"]
+      }
+    ]
+  }
+}

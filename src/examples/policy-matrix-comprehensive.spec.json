@@ -1,0 +1,832 @@
+{
+  "defaults": {
+    "timeoutMs": 10000,
+    "idleMs": 500
+  },
+  "environments": [
+    {
+      "name": "NO_POLICY",
+      "description": "Baseline: All scripts run without any policy enforcement",
+      "policies": [],
+      "cases": [
+        {
+          "name": "hello_world - no policy",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - no policy",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - no policy",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "allow": ["/etc/hosts read succeeded"]
+          }
+        },
+        {
+          "name": "fs_allow_etc - no policy",
+          "example": "fs_allow_work.py",
+          "expect": {
+            "allow": ["/etc entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc_hostname - no policy",
+          "example": "fs_deny_var_log.py",
+          "expect": {
+            "allow": ["/etc/hostname read succeeded"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - no policy",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "allow": ["RFC1918 connection succeeded"]
+          }
+        },
+        {
+          "name": "net_allow_external - no policy",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_db_ports - no policy",
+          "example": "net_warn_db_ports.py",
+          "expect": {
+            "allow": ["Database connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_ssh - no policy",
+          "example": "net_warn_ssh.py",
+          "expect": {
+            "allow": ["SSH connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_mysql - no policy",
+          "example": "net_warn_mysql.py",
+          "expect": {
+            "allow": ["MySQL connection succeeded"]
+          }
+        },
+        {
+          "name": "exec_allow_python - no policy",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - no policy",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "allow": ["/bin/sh executed"]
+          }
+        },
+        {
+          "name": "exec_deny_cat - no policy",
+          "example": "exec_deny_cat.py",
+          "expect": {
+            "allow": ["/bin/cat executed"]
+          }
+        },
+        {
+          "name": "exec_deny_ls - no policy",
+          "example": "exec_deny_ls.py",
+          "expect": {
+            "allow": ["/bin/ls executed"]
+          }
+        },
+        {
+          "name": "exec_deny_curl - no policy",
+          "example": "exec_deny_curl.py",
+          "expect": {
+            "allow": ["/usr/bin/curl executed"]
+          }
+        },
+        {
+          "name": "exec_deny_bun - no policy",
+          "example": "exec_deny_bun.py",
+          "expect": {
+            "allow": ["bun executed"]
+          }
+        },
+        {
+          "name": "exec_deny_bash - no policy",
+          "example": "exec_deny_bash.py",
+          "expect": {
+            "allow": ["bash executed"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "DEFAULT_POLICY",
+      "description": "Unrestricted default policy (no enforcement)",
+      "policies": ["default.json"],
+      "cases": [
+        {
+          "name": "hello_world - default policy",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - default (green test)",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - default",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "allow": ["/etc/hosts read succeeded"]
+          }
+        },
+        {
+          "name": "fs_allow_etc - default (green test)",
+          "example": "fs_allow_work.py",
+          "expect": {
+            "allow": ["/etc entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc_hostname - default",
+          "example": "fs_deny_var_log.py",
+          "expect": {
+            "allow": ["/etc/hostname read succeeded"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - default",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "allow": ["RFC1918 connection succeeded"]
+          }
+        },
+        {
+          "name": "net_allow_external - default (green test)",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_db_ports - default",
+          "example": "net_warn_db_ports.py",
+          "expect": {
+            "allow": ["Database connection succeeded"]
+          }
+        },
+        {
+          "name": "exec_allow_python - default (green test)",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - default",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "allow": ["/bin/sh executed"]
+          }
+        },
+        {
+          "name": "exec_deny_cat - default",
+          "example": "exec_deny_cat.py",
+          "expect": {
+            "allow": ["/bin/cat executed"]
+          }
+        },
+        {
+          "name": "exec_deny_ls - default",
+          "example": "exec_deny_ls.py",
+          "expect": {
+            "allow": ["/bin/ls executed"]
+          }
+        },
+        {
+          "name": "exec_deny_curl - default",
+          "example": "exec_deny_curl.py",
+          "expect": {
+            "allow": ["/usr/bin/curl executed"]
+          }
+        },
+        {
+          "name": "exec_deny_bun - default",
+          "example": "exec_deny_bun.py",
+          "expect": {
+            "allow": ["bun executed"]
+          }
+        },
+        {
+          "name": "exec_deny_bash - default",
+          "example": "exec_deny_bash.py",
+          "expect": {
+            "allow": ["bash executed"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FS_ALLOWLIST_POLICY",
+      "description": "Filesystem allowlist: /tmp and /app allowed, everything else denied",
+      "policies": ["fs-allowlist.json"],
+      "cases": [
+        {
+          "name": "hello_world - fs-allowlist",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - fs-allowlist (green test)",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - fs-allowlist",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "deny": ["/etc/hosts access denied"]
+          }
+        },
+        {
+          "name": "fs_deny_app - fs-allowlist",
+          "example": "fs_deny_app.py",
+          "expect": {
+            "deny": ["/app access denied"]
+          }
+        },
+        {
+          "name": "fs_deny_etc_hostname - fs-allowlist",
+          "example": "fs_deny_var_log.py",
+          "expect": {
+            "deny": ["/etc/hostname access denied"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - fs-allowlist",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "allow": ["RFC1918 connection succeeded"]
+          }
+        },
+        {
+          "name": "net_allow_external - fs-allowlist",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "exec_allow_python - fs-allowlist",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - fs-allowlist",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "allow": ["/bin/sh executed"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "NET_EGRESS_POLICY",
+      "description": "Network egress: Block RFC1918/metadata, warn on DB/SSH ports",
+      "policies": ["net-egress.json"],
+      "cases": [
+        {
+          "name": "hello_world - net-egress",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - net-egress",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - net-egress",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "allow": ["/etc/hosts read succeeded"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - net-egress (green test)",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "deny": ["RFC1918 connection blocked"]
+          }
+        },
+        {
+          "name": "net_deny_172_16 - net-egress",
+          "example": "net_deny_172_16.py",
+          "expect": {
+            "deny": ["172.16 connection blocked"]
+          }
+        },
+        {
+          "name": "net_deny_192_168 - net-egress",
+          "example": "net_deny_192_168.py",
+          "expect": {
+            "deny": ["192.168 connection blocked"]
+          }
+        },
+        {
+          "name": "net_deny_metadata - net-egress (green test)",
+          "example": "net_deny_metadata.py",
+          "expect": {
+            "deny": ["Metadata connection blocked"]
+          }
+        },
+        {
+          "name": "net_allow_external - net-egress",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_db_ports - net-egress (green test - warn)",
+          "example": "net_warn_db_ports.py",
+          "expect": {
+            "allow": ["Database connection succeeded"],
+            "warn": ["5432", "warn"]
+          }
+        },
+        {
+          "name": "net_warn_ssh - net-egress (green test - warn)",
+          "example": "net_warn_ssh.py",
+          "expect": {
+            "allow": ["SSH connection succeeded"],
+            "warn": ["2222", "warn"]
+          }
+        },
+        {
+          "name": "net_warn_mysql - net-egress (green test - warn)",
+          "example": "net_warn_mysql.py",
+          "expect": {
+            "allow": ["MySQL connection succeeded"],
+            "warn": ["3306", "warn"]
+          }
+        },
+        {
+          "name": "exec_allow_python - net-egress",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - net-egress",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "allow": ["/bin/sh executed"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "EXEC_POLICY",
+      "description": "Execution policy: Only python allowed, all other executables denied",
+      "policies": ["exec-policy.json"],
+      "cases": [
+        {
+          "name": "hello_world - exec-policy",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - exec-policy",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - exec-policy",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "allow": ["RFC1918 connection succeeded"]
+          }
+        },
+        {
+          "name": "net_allow_external - exec-policy",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "exec_allow_python - exec-policy (green test)",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - exec-policy (green test)",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "deny": ["/bin/sh exec denied"]
+          }
+        },
+        {
+          "name": "exec_deny_cat - exec-policy (green test)",
+          "example": "exec_deny_cat.py",
+          "expect": {
+            "deny": ["/bin/cat exec denied"]
+          }
+        },
+        {
+          "name": "exec_deny_ls - exec-policy (green test)",
+          "example": "exec_deny_ls.py",
+          "expect": {
+            "deny": ["/bin/ls exec denied"]
+          }
+        },
+        {
+          "name": "exec_deny_curl - exec-policy (green test)",
+          "example": "exec_deny_curl.py",
+          "expect": {
+            "deny": ["/usr/bin/curl exec denied"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ANTI_ESCAPE_POLICY",
+      "description": "Anti-escape: All operations allowed except dangerous syscalls blocked",
+      "policies": ["anti-escape.json"],
+      "cases": [
+        {
+          "name": "hello_world - anti-escape",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - anti-escape",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "net_allow_external - anti-escape",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "exec_allow_python - anti-escape",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "BPF_AUDIT_POLICY",
+      "description": "eBPF audit: All operations allowed, but events are logged",
+      "policies": ["ebpf-audit.json"],
+      "cases": [
+        {
+          "name": "hello_world - ebpf-audit",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - ebpf-audit",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "net_allow_external - ebpf-audit",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "exec_allow_python - ebpf-audit",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "DEFAULT_PLUS_NET_EGRESS",
+      "description": "Combined: Default + NetEgress (FS deny, Net deny, Exec deny)",
+      "policies": ["default.json", "net-egress.json"],
+      "cases": [
+        {
+          "name": "hello_world - default+netegress",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - default+netegress (green test)",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - default+netegress",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "deny": ["/etc/hosts access denied"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - default+netegress (green test)",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "deny": ["RFC1918 connection blocked"]
+          }
+        },
+        {
+          "name": "net_allow_external - default+netegress (green test)",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_db_ports - default+netegress (green test - warn)",
+          "example": "net_warn_db_ports.py",
+          "expect": {
+            "allow": ["Database connection succeeded"],
+            "warn": ["5432", "warn"]
+          }
+        },
+        {
+          "name": "exec_allow_python - default+netegress (green test)",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - default+netegress",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "deny": ["/bin/sh exec denied"]
+          }
+        },
+        {
+          "name": "exec_deny_cat - default+netegress",
+          "example": "exec_deny_cat.py",
+          "expect": {
+            "deny": ["/bin/cat exec denied"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "DEFAULT_PLUS_EXEC_POLICY",
+      "description": "Combined: Default + ExecPolicy (FS deny, Net allow, Exec deny)",
+      "policies": ["default.json", "exec-policy.json"],
+      "cases": [
+        {
+          "name": "hello_world - default+execpolicy",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - default+execpolicy (green test)",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - default+execpolicy",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "deny": ["/etc/hosts access denied"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - default+execpolicy",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "allow": ["RFC1918 connection succeeded"]
+          }
+        },
+        {
+          "name": "net_allow_external - default+execpolicy (green test)",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "exec_allow_python - default+execpolicy (green test)",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - default+execpolicy (green test)",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "deny": ["/bin/sh exec denied"]
+          }
+        },
+        {
+          "name": "exec_deny_cat - default+execpolicy (green test)",
+          "example": "exec_deny_cat.py",
+          "expect": {
+            "deny": ["/bin/cat exec denied"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "NET_EGRESS_PLUS_EXEC_POLICY",
+      "description": "Combined: NetEgress + ExecPolicy (FS allow, Net block, Exec deny)",
+      "policies": ["net-egress.json", "exec-policy.json"],
+      "cases": [
+        {
+          "name": "hello_world - netegress+execpolicy",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - netegress+execpolicy",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - netegress+execpolicy",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "allow": ["/etc/hosts read succeeded"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - netegress+execpolicy (green test)",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "deny": ["RFC1918 connection blocked"]
+          }
+        },
+        {
+          "name": "net_allow_external - netegress+execpolicy",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_db_ports - netegress+execpolicy (green test - warn)",
+          "example": "net_warn_db_ports.py",
+          "expect": {
+            "allow": ["Database connection succeeded"],
+            "warn": ["5432", "warn"]
+          }
+        },
+        {
+          "name": "exec_allow_python - netegress+execpolicy (green test)",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - netegress+execpolicy (green test)",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "deny": ["/bin/sh exec denied"]
+          }
+        },
+        {
+          "name": "exec_deny_cat - netegress+execpolicy (green test)",
+          "example": "exec_deny_cat.py",
+          "expect": {
+            "deny": ["/bin/cat exec denied"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ALL_POLICIES",
+      "description": "Combined: All policies (most restrictive baseline)",
+      "policies": ["default.json", "net-egress.json", "exec-policy.json", "fs-allowlist.json", "anti-escape.json"],
+      "cases": [
+        {
+          "name": "hello_world - all policies",
+          "example": "hello_world.py",
+          "expect": {
+            "allow": ["Calculation: 25 \\* 4 = 100"]
+          }
+        },
+        {
+          "name": "fs_allow_tmp - all policies (green test)",
+          "example": "fs_allow_tmp.py",
+          "expect": {
+            "allow": ["/tmp entries"]
+          }
+        },
+        {
+          "name": "fs_deny_etc - all policies",
+          "example": "fs_deny_etc.py",
+          "expect": {
+            "deny": ["/etc/hosts access denied"]
+          }
+        },
+        {
+          "name": "net_rfc1918_block - all policies (green test)",
+          "example": "net_rfc1918_block.py",
+          "expect": {
+            "deny": ["RFC1918 connection blocked"]
+          }
+        },
+        {
+          "name": "net_allow_external - all policies",
+          "example": "net_allow_external.py",
+          "expect": {
+            "allow": ["External HTTPS connection succeeded"]
+          }
+        },
+        {
+          "name": "net_warn_db_ports - all policies",
+          "example": "net_warn_db_ports.py",
+          "expect": {
+            "deny": ["Database connection blocked"]
+          }
+        },
+        {
+          "name": "exec_allow_python - all policies (green test)",
+          "example": "exec_allow_python.py",
+          "expect": {
+            "allow": ["Python exec output: ok"]
+          }
+        },
+        {
+          "name": "exec_deny_shell - all policies (green test)",
+          "example": "exec_deny_shell.py",
+          "expect": {
+            "deny": ["/bin/sh exec denied"]
+          }
+        },
+        {
+          "name": "exec_deny_cat - all policies (green test)",
+          "example": "exec_deny_cat.py",
+          "expect": {
+            "deny": ["/bin/cat exec denied"]
+          }
+        }
+      ]
+    }
+  ]
+}

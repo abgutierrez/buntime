@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "plugins": {
+    "namespaces": true,
+    "landlock": true,
+    "seccomp": true
+  },
+  "defaults": {
+    "fs": "allow",
+    "net": "allow",
+    "exec": "allow"
+  },
+  "antiEscape": {
+    "denySyscalls": [
+      "ptrace",
+      "mount",
+      "umount2",
+      "bpf",
+      "kexec_load",
+      "unshare",
+      "setns",
+      "clone3",
+      "init_module",
+      "finit_module",
+      "perf_event_open",
+      "keyctl",
+      "add_key"
+    ]
+  }
+}

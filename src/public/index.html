@@ -3,28 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bun Python IPC</title>
+    <title>Bun Policy Sandbox</title>
     <style>
         :root {
-            --bg-dark: #1e1e1e;
-            --bg-panel: #252526;
-            --bg-widget: #2d2d2d;
-            --border: #3e3e3e;
-            --accent: #eab308;
-            --accent-hover: #ca9a04;
-            --text-main: #e0e0e0;
-            --text-muted: #888;
-            --success: #4caf50;
-            --danger: #e53935;
-            --info: #2196f3;
-            --mono: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
+            --bg-root: #18181b; /* Zinc 950 */
+            --bg-panel: #27272a; /* Zinc 800 */
+            --bg-sub: #27272a;
+            --bg-input: #09090b; /* Zinc 950 */
+            --border: #3f3f46; /* Zinc 700 */
+            
+            --text-main: #e4e4e7; /* Zinc 200 */
+            --text-muted: #a1a1aa; /* Zinc 400 */
+            --text-dim: #71717a; /* Zinc 500 */
+            
+            --accent: #facc15; /* Yellow 400 */
+            --accent-dim: #ca8a04; /* Yellow 600 */
+            --accent-text: #000;
+            
+            --success: #22c55e; /* Green 500 */
+            --danger: #ef4444; /* Red 500 */
+            --info: #3b82f6; /* Blue 500 */
+            
+            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
         }
 
         * { box-sizing: border-box; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg-dark);
+            font-family: var(--font-ui);
+            background: var(--bg-root);
             color: var(--text-main);
             margin: 0;
             height: 100vh;
@@ -33,59 +41,57 @@
             flex-direction: column;
         }
 
+        /* HEADER */
         header {
-            height: 50px;
+            height: 56px;
             padding: 0 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid var(--border);
-            background: var(--bg-panel);
+            background: var(--bg-root);
+            flex-shrink: 0;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         h1 {
-            font-size: 1rem;
+            font-size: 0.95rem;
             margin: 0;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+        }
+
+        .connection-status {
+            font-size: 0.75rem;
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-weight: 600;
+            gap: 8px;
+            color: var(--text-muted);
         }
-
-        .status-badge {
-            font-size: 0.7rem;
-            padding: 2px 8px;
-            border-radius: 12px;
-            background: #444;
-            text-transform: uppercase;
-            font-weight: bold;
-            letter-spacing: 0.5px;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+            transition: background 0.3s;
         }
-        .status-badge.connected { background: var(--success); color: #000; }
+        .status-dot.connected { background: var(--success); box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
 
-        .health-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            font-family: var(--mono);
-            background: #444;
-            color: #ccc;
-        }
-        .health-pill.ok { background: var(--success); color: #000; }
-        .health-pill.warn { background: #f59e0b; color: #000; }
-        .health-pill.hot { background: #e53935; color: #000; }
-
+        /* LAYOUT */
         .workspace {
             display: flex;
             flex: 1;
             overflow: hidden;
         }
 
-        .editor-section {
+        /* LEFT COLUMN */
+        .execution-pane {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -93,397 +99,1798 @@
             min-width: 0;
         }
 
-        .debug-sidebar {
-            width: 450px;
-            display: flex;
-            flex-direction: column;
-            background: var(--bg-dark);
-            border-left: 1px solid var(--border);
-        }
-
         .toolbar {
-            padding: 10px;
+            padding: 12px;
             display: flex;
-            gap: 10px;
-            background: var(--bg-dark);
+            gap: 12px;
             border-bottom: 1px solid var(--border);
+            background: var(--bg-root);
         }
 
-        textarea {
+        .btn {
+            padding: 0 16px;
+            height: 32px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        
+        .btn-primary { 
+            background: var(--accent); 
+            color: var(--accent-text); 
+            border-color: var(--accent-dim);
+        }
+        .btn-primary:hover { background: #fde047; }
+        .btn-primary:active { transform: translateY(1px); }
+
+        .btn-danger { 
+            background: transparent; 
+            color: var(--danger); 
+            border-color: var(--danger);
+        }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.1); }
+
+        .editor-container {
             flex: 1;
-            background: var(--bg-dark);
-            color: var(--text-main);
+            position: relative;
+            background: var(--bg-input);
+        }
+
+        textarea#editor {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            color: transparent;
+            caret-color: var(--text-main);
             border: none;
             padding: 20px;
-            font-family: var(--mono);
+            font-family: var(--font-mono);
             font-size: 14px;
             line-height: 1.6;
+            tab-size: 4;
             resize: none;
             outline: none;
         }
+        textarea#editor::selection {
+            background: rgba(161, 161, 170, 0.2); /* Zinc 400 low opacity */
+            color: transparent;
+        }
 
-        .panel {
+        .console-panel {
+            height: 35%;
             display: flex;
             flex-direction: column;
-            border-bottom: 1px solid var(--border);
+            border-top: 1px solid var(--border);
+            background: #0f0f11;
         }
-        
+
         .panel-header {
-            padding: 8px 15px;
-            font-size: 0.75rem;
+            padding: 0 16px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.7rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.05em;
             color: var(--text-muted);
             font-weight: 600;
             background: var(--bg-panel);
             border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
-        .panel-content {
-            padding: 15px;
+        .console-content {
+            flex: 1;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        /* RIGHT COLUMN */
+        .sidebar {
+            width: 440px;
+            background: var(--bg-root);
+            display: flex;
+            flex-direction: column;
             overflow-y: auto;
         }
 
-        .memory-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
+        .sidebar-section {
+            border-bottom: 1px solid var(--border);
         }
 
-        .stat-card {
-            background: var(--bg-widget);
+        .policy-controls {
+            padding: 16px;
+            background: var(--bg-root);
+        }
+
+        .policy-select-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        select.policy-dropdown, select.policy-input-select {
+            background: var(--bg-input);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 6px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+        select.policy-dropdown { flex: 1; padding: 8px; }
+
+        .policy-details {
+            background: var(--bg-sub);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .policy-meta {
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .policy-name { font-weight: 600; color: var(--text-main); font-size: 0.9rem; margin-bottom: 4px; }
+        .policy-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; }
+
+        .policy-section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin: 8px 0 4px 0;
+            letter-spacing: 0.05em;
+        }
+
+        .policy-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .policy-input {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            width: 100%;
+        }
+        
+        /* BADGES */
+        .badge {
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .badge-default {
+            background: rgba(250, 204, 21, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(250, 204, 21, 0.2);
+        }
+
+        /* BTN GROUPS */
+        .btn-group {
+            display: flex;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 2px;
+            gap: 2px;
+        }
+        .btn-xs {
+            height: 24px;
+            padding: 0 12px;
+            font-size: 0.65rem;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-xs:hover { color: var(--text-main); background: rgba(255,255,255,0.05); border-color: var(--border); }
+        
+        /* Variant for Primary Action (ALL ON) */
+        .btn-xs.btn-action-primary { color: var(--accent); }
+        .btn-xs.btn-action-primary:hover { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+        
+        .toggle-switch {
+            position: relative;
+            width: 32px;
+            height: 18px;
+            flex-shrink: 0;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            transition: .4s;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-muted);
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-dim); border-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(14px); background-color: #000; }
+
+        /* TELEMETRY */
+        .policy-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+        
+        .policy-card {
+            background: var(--bg-sub);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+        
+        .policy-card:hover { border-color: var(--text-muted); }
+        .policy-card[data-active="true"] { 
+            border-color: var(--active-color, var(--accent)); 
+            background: linear-gradient(to right, rgba(255,255,255,0.02), transparent);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .policy-card__accent {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: var(--border);
+            transition: background 0.2s;
+        }
+        .policy-card[data-active="true"] .policy-card__accent { background: var(--active-color, var(--accent)); }
+
+        .policy-card__header {
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            justify-content: space-between;
+        }
+
+        .policy-card__controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .policy-card__info { flex: 1; min-width: 0; }
+        .policy-card__title { 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            color: var(--text-main); 
+            margin-bottom: 2px;
+            display: flex; 
+            align-items: center;
+            gap: 8px;
+        }
+        .policy-card__desc { 
+            font-size: 0.7rem; 
+            color: var(--text-muted); 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            opacity: 0.7;
+        }
+
+        .policy-card__body {
+            display: none;
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-input);
+            animation: expand 0.2s ease-out;
+        }
+        .policy-card[data-expanded="true"] .policy-card__body { display: block; }
+        
+        .expand-icon {
+            color: var(--text-dim);
+            transition: transform 0.2s;
+            font-size: 0.7rem;
+            padding: 8px;
+        }
+        .policy-card[data-expanded="true"] .expand-icon { transform: rotate(180deg); }
+
+        @keyframes expand { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* TELEMETRY */
+        .telemetry-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .metric-card {
+            background: var(--bg-sub);
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: 12px;
         }
 
-        .stat-card h3 {
-            margin: 0 0 10px 0;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 5px;
-        }
-
-        .metric-row {
+        .metric-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            font-weight: 600;
             display: flex;
             justify-content: space-between;
-            font-family: var(--mono);
-            font-size: 0.75rem;
-            margin-bottom: 4px;
-            color: #ccc;
         }
-        .metric-row span:last-child { color: #fff; font-weight: bold; }
-        .metric-row.highlight { color: var(--accent); }
 
-        .usage-bar {
-            height: 4px;
-            background: #444;
-            border-radius: 2px;
-            margin-top: 8px;
-            overflow: hidden;
+        .metric-stats-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
         }
-        .usage-fill {
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-label { font-size: 0.65rem; color: var(--text-dim); margin-bottom: 2px; }
+        .stat-value { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-main); }
+        .stat-unit { font-size: 0.7rem; color: var(--text-muted); }
+
+        .progress-track {
+            height: 4px;
+            background: var(--bg-input);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-fill {
             height: 100%;
             background: var(--info);
             width: 0%;
-            transition: width 0.3s ease;
+            transition: width 0.3s;
         }
-        .usage-fill.high { background: var(--danger); }
+        .progress-fill.high { background: var(--accent); }
 
-        .state-grid {
+        .syscall-heatmap {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 12px;
         }
-        
-        .state-item {
+        .heatmap-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 0.85rem;
-            padding: 8px;
-            background: var(--bg-widget);
+            gap: 8px;
+            padding: 6px 8px;
             border-radius: 4px;
+            background: var(--bg-sub);
+            border: 1px solid var(--border);
         }
-        
-        .state-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #555;
+        .heatmap-color-box {
+            width: 10px; 
+            height: 10px;
+            border-radius: 2px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+            transition: background 0.3s;
         }
-        .state-indicator.active { background: var(--success); box-shadow: 0 0 8px rgba(76, 175, 80, 0.4); }
-        .state-indicator.error { background: var(--danger); }
-        
-        .state-label { width: 80px; color: var(--text-muted); font-size: 0.75rem; }
-        .state-value { font-family: var(--mono); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        .output-panel {
+        .heatmap-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             flex: 1;
-            min-height: 150px;
-            background: #111;
         }
-        .output-content {
-            font-family: var(--mono);
-            font-size: 0.8rem;
-            padding: 15px;
-            white-space: pre-wrap;
-            color: #ccc;
-            height: 100%;
-            overflow-y: auto;
+        .heatmap-value {
+             font-size: 0.7rem;
+             color: var(--text-dim);
+             font-family: var(--font-mono);
         }
 
-        .btn {
-            padding: 8px 16px;
-            border: none;
+        /* STATE ROW */
+        .state-row {
+            padding: 12px 16px;
+            background: var(--bg-sub);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 20px;
+        }
+        .state-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+        .state-chip-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+        .state-chip.active .state-chip-dot { background: var(--info); box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+        .state-chip.running .state-chip-dot { background: var(--success); box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+        
+        .tooltip { position: relative; }
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            padding: 6px 10px;
+            background: #000;
+            color: #fff;
             border-radius: 4px;
-            font-weight: 600;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            margin-bottom: 6px;
+            z-index: 10;
+            pointer-events: none;
+            border: 1px solid var(--border);
+        }
+
+        /* SCROLLBARS */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+        /* NEW UI ELEMENTS */
+        .policy-summary {
+            background: var(--bg-sub);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .policy-summary__content { display: flex; flex-direction: column; gap: 2px; }
+        .policy-summary__label { font-size: 0.65rem; text-transform: uppercase; color: var(--text-dim); font-weight: 700; letter-spacing: 0.05em; }
+        .policy-summary__value { font-size: 0.9rem; font-weight: 600; color: var(--text-main); }
+        .policy-summary__stats { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 60%; }
+        .policy-summary__chip {
+            font-size: 0.65rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .template-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 12px;
+            margin-left: 12px;
+            border-left: 1px solid var(--border);
+        }
+        .template-select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            height: 32px;
+            outline: none;
+            cursor: pointer;
+            font-family: var(--font-ui);
+        }
+        .template-select:hover { border-color: var(--text-muted); }
+        #load-template {
+            height: 32px;
+            padding: 0 12px;
+            background: var(--bg-sub);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 6px;
             font-size: 0.8rem;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            font-weight: 500;
         }
-        .btn-primary { background: var(--accent); color: #000; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-danger:hover { opacity: 0.9; }
+        #load-template:hover { background: var(--bg-panel); border-color: var(--text-muted); }
 
-        ::-webkit-scrollbar { width: 10px; height: 10px; }
-        ::-webkit-scrollbar-track { background: var(--bg-dark); }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; border: 2px solid var(--bg-dark); }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        /* SYNTAX HIGHLIGHTING */
+        .editor-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            margin: 0; padding: 20px;
+            border: none;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            line-height: 1.6;
+            tab-size: 4;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            box-sizing: border-box;
+            background: transparent;
+            text-align: left;
+        }
+        .highlight-layer {
+            z-index: 0;
+            color: var(--text-main);
+            pointer-events: none;
+            /* overflow: hidden; Removed to sync scrollbars with textarea */
+        }
+        /* Hide scrollbar visuals in highlight layer to prevent ghosting/overlay issues */
+        .highlight-layer::-webkit-scrollbar { background: transparent; width: 8px; }
+        .highlight-layer::-webkit-scrollbar-thumb { background: transparent; border-radius: 0; border: none; }
+        .highlight-layer::-webkit-scrollbar-track { background: transparent; }
+
+        .input-layer {
+            z-index: 1;
+            color: transparent;
+            background: transparent;
+            caret-color: var(--text-main);
+            resize: none;
+            outline: none;
+        }
+        
+        .highlight-layer .hl-keyword { color: #c084fc; font-weight: bold; } /* Purple 400 */
+        .highlight-layer .hl-string { color: #a3e635; } /* Lime 400 */
+        .highlight-layer .hl-comment { color: #71717a; font-style: italic; } /* Zinc 500 */
+        .highlight-layer .hl-number { color: #60a5fa; } /* Blue 400 */
+        .highlight-layer .hl-func { color: #fbbf24; } /* Amber 400 */
+        .highlight-layer .hl-def { color: #f472b6; } /* Pink 400 */
+
+        /* AUDIT LOG */
+        .audit-panel {
+            margin-top: 16px;
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+        }
+        .audit-list {
+            height: 180px;
+            overflow-y: auto;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 4px 0;
+        }
+        .audit-item {
+            padding: 2px 8px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            color: var(--text-muted);
+            align-items: center;
+        }
+        .audit-item:last-child { border-bottom: none; }
+        .audit-time { color: var(--text-dim); min-width: 50px; font-size: 0.65rem; }
+        .audit-syscall { color: var(--accent); font-weight: 600; min-width: 60px; }
+        .audit-target { color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* EXECUTION HISTORY */
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--bg-input);
+        }
+        .history-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-header { display: flex; justify-content: space-between; align-items: center; }
+        .history-name { font-weight: 600; font-size: 0.8rem; color: var(--text-main); }
+        .history-duration { font-size: 0.7rem; font-family: var(--font-mono); color: var(--accent); }
+        .history-meta { display: flex; gap: 8px; font-size: 0.65rem; color: var(--text-dim); align-items: center; }
+        .history-status { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); }
+        .history-status.success { background: var(--success); }
+        .history-status.error { background: var(--danger); }
+
     </style>
 </head>
 <body>
     <header>
-        <h1>⚡ Bun + Python IPC</h1>
-        <div id="status" class="status-badge">Disconnected</div>
+        <div class="brand">
+            <div style="width:24px; height:24px; background:var(--text-main); border-radius:4px; display:grid; place-items:center; color:var(--bg-root); font-weight:900; font-size:14px;">B</div>
+            <h1>Bun IPC Policy Sandbox</h1>
+        </div>
+        
+        <div class="connection-status">
+            <div id="conn-dot" class="status-dot"></div>
+            <span id="conn-text">Disconnected</span>
+        </div>
     </header>
-    
+
     <div class="workspace">
-        <div class="editor-section">
+        <section class="execution-pane">
             <div class="toolbar">
                 <button class="btn btn-primary" onclick="runCode()">
-                    ▶ RUN (Ctrl+Enter)
+                    <span>▶</span> Run Code
                 </button>
                 <button class="btn btn-danger" onclick="stopCode()">
-                    ⏹ STOP
+                    <span>⏹</span> Stop
                 </button>
+                <div class="template-control">
+                    <select id="template-select" class="template-select" onchange="loadTemplate()">
+                        <option value="" disabled selected>Select Template...</option>
+                    </select>
+
+                </div>
+                <div style="flex:1"></div>
+                <span style="font-size:0.75rem; color:var(--text-dim); align-self:center;">Ctrl+Enter to Run</span>
             </div>
-            <textarea id="editor" spellcheck="false"># Python Shared Memory REPL
-import os
-
-print("[Python] Hello from sandbox", flush=True)
-print(f"[Python] CWD: {os.getcwd()}", flush=True)
-print(f"[Python] HTTP_PROXY: {os.environ.get('HTTP_PROXY')}", flush=True)
-print(f"[Python] HTTPS_PROXY: {os.environ.get('HTTPS_PROXY')}", flush=True)</textarea>
-        </div>
-
-        <div class="debug-sidebar">
             
-            <div class="panel" style="flex: 0 0 auto;">
+            <div class="editor-container">
+                <div id="editor-highlight" class="editor-layer highlight-layer"></div>
+                <textarea id="editor" class="editor-layer input-layer" spellcheck="false"># Python Shared Memory REPL
+import os
+import sys
+import time
+
+print("[Executor] Starting secure execution environment...", flush=True)
+print(f"[Executor] PID: {os.getpid()}", flush=True)
+print(f"[Executor] CWD: {os.getcwd()}", flush=True)
+
+# Try to access network (will fail if policy denies)
+try:
+    print("[Executor] Attempting socket creation...", flush=True)
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("[Executor] Socket created (unexpected if no-network)", flush=True)
+except Exception as e:
+    print(f"[Executor] Network blocked: {e}", flush=True)
+</textarea>
+            </div>
+
+            <div class="console-panel">
                 <div class="panel-header">
-                    <span>Memory State (Ring Buffer)</span>
-                    <span id="buffer-health" class="health-pill ok">OK</span>
-                    <span style="font-size:10px; opacity:0.5">SHM</span>
+                    <span>Output Console</span>
+                    <button onclick="clearOutput()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:0.7rem; font-family:var(--font-mono);">CLEAR</button>
                 </div>
-                <div class="panel-content">
-                    <div class="memory-grid">
-                        <div class="stat-card" id="mem-bun2py">
-                            <h3>Bun ➔ Py</h3>
-                            <div class="metric-row"><span>Head</span><span data-key="head">0</span></div>
-                            <div class="metric-row"><span>Tail</span><span data-key="tail">0</span></div>
-                            <div class="metric-row"><span>Used</span><span data-key="used">0B</span></div>
-                            <div class="metric-row"><span>Free</span><span data-key="free">0B</span></div>
-                            <div class="usage-bar"><div class="usage-fill" style="width: 0%"></div></div>
+                <div id="output" class="console-content"></div>
+            </div>
+        </section>
+
+        <section class="sidebar">
+            <div class="sidebar-section policy-controls">
+                <div class="panel-header" style="padding:0; background:transparent; border:none; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Active Policy</span>
+                    <div class="btn-group">
+                        <button onclick="enableAllPolicies()" class="btn-xs btn-action-primary" title="Enable all policies">ALL ON</button>
+                        <button onclick="disableAllPolicies()" class="btn-xs" title="Disable all policies">ALL OFF</button>
+                    </div>
+                </div>
+                
+                <div id="policy-summary" class="policy-summary">
+                    <div class="policy-summary__content">
+                         <span class="policy-summary__label">Policy Set</span>
+                         <span class="policy-summary__value" id="summary-state">Standard</span>
+                    </div>
+                    <div class="policy-summary__stats">
+                        <span class="policy-summary__chip" id="summary-count">1 Active</span>
+                        <span class="policy-summary__chip" id="summary-defaults">FS: deny | NET: deny | EXEC: deny</span>
+                        <span class="policy-summary__chip" id="summary-rules">Rules: 0</span>
+                    </div>
+                </div>
+
+                <div id="policy-list" class="policy-list">
+                    <!-- Populated by JS -->
+                </div>
+
+
+            </div>
+
+            <div class="sidebar-section">
+                <div class="panel-header">
+                    <span>Execution History</span>
+                    <button onclick="clearHistory()" class="btn-xs" style="font-size:0.6rem">CLEAR</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <div style="padding:16px; text-align:center; color:var(--text-dim); font-size:0.75rem">No executions yet</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="panel-header">Telemetry & Memory</div>
+                <div class="telemetry-grid">
+                    <!-- Supervisor -> Executor -->
+                    <div class="metric-card">
+                        <div class="metric-title">
+                            <span>Supervisor ➔ Executor</span>
+                            <span class="stat-unit" style="font-size:0.6rem">RING BUFFER A</span>
                         </div>
-                        
-                        <div class="stat-card" id="mem-py2bun">
-                            <h3>Py ➔ Bun</h3>
-                            <div class="metric-row"><span>Head</span><span data-key="head">0</span></div>
-                            <div class="metric-row"><span>Tail</span><span data-key="tail">0</span></div>
-                            <div class="metric-row"><span>Used</span><span data-key="used">0B</span></div>
-                            <div class="metric-row"><span>Free</span><span data-key="free">0B</span></div>
-                            <div class="usage-bar"><div class="usage-fill" style="width: 0%"></div></div>
+                        <div class="metric-stats-row">
+                            <div class="stat-item">
+                                <span class="stat-label">USED / CAP</span>
+                                <span class="stat-value" id="b2p-used">0 / 0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">THROUGHPUT</span>
+                                <span class="stat-value" id="b2p-rate">0 <span class="stat-unit">B/s</span></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">UTILIZATION</span>
+                                <span class="stat-value" id="b2p-util">0<span class="stat-unit">%</span></span>
+                            </div>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="b2p-bar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Executor -> Supervisor -->
+                    <div class="metric-card">
+                        <div class="metric-title">
+                            <span>Executor ➔ Supervisor</span>
+                            <span class="stat-unit" style="font-size:0.6rem">RING BUFFER B</span>
+                        </div>
+                        <div class="metric-stats-row">
+                            <div class="stat-item">
+                                <span class="stat-label">USED / CAP</span>
+                                <span class="stat-value" id="p2b-used">0 / 0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">THROUGHPUT</span>
+                                <span class="stat-value" id="p2b-rate">0 <span class="stat-unit">B/s</span></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">UTILIZATION</span>
+                                <span class="stat-value" id="p2b-util">0<span class="stat-unit">%</span></span>
+                            </div>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="p2b-bar"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="padding: 0 16px 16px 16px;">
+                    <div class="metric-title">Syscall Activity</div>
+                    <div class="syscall-heatmap" id="syscall-heatmap">
+                        <div style="color:var(--text-dim); font-size:0.7rem; padding:4px;">Waiting for data...</div>
+                    </div>
+                    <div class="audit-panel">
+                        <div class="metric-title">Live Audit Events</div>
+                        <div id="audit-list" class="audit-list">
+                            <div style="padding:8px; text-align:center; color:var(--text-dim)">Waiting for events...</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="panel" style="flex: 0 0 auto;">
-                <div class="panel-header">Execution Context</div>
-                <div class="panel-content">
-                    <div class="state-grid">
-                        <div class="state-item">
-                            <div class="state-indicator" id="status-bun"></div>
-                            <div class="state-label">BUN</div>
-                            <div class="state-value" id="state-bun-msg">Idle</div>
-                        </div>
-                        <div class="state-item">
-                            <div class="state-indicator" id="status-py"></div>
-                            <div class="state-label">PYTHON</div>
-                            <div class="state-value" id="state-py-msg">Waiting...</div>
-                        </div>
-                        <div class="state-item" style="border-top: 1px solid #333; margin-top: 5px; padding-top: 10px;">
-                            <div class="state-label" style="width:auto; margin-right:10px;">Last Signal:</div>
-                            <div class="state-value" id="last-signal" style="color: var(--accent);">NONE</div>
-                        </div>
-                    </div>
+            <div class="state-row">
+                <div class="state-chip" id="sup-state">
+                    <div class="state-chip-dot"></div>
+                    <span style="font-weight:600; color:var(--text-muted);">SUPERVISOR:</span>
+                    <span id="sup-val" style="font-family:var(--font-mono);">Idle</span>
+                </div>
+                <div class="state-chip" id="exec-state">
+                    <div class="state-chip-dot"></div>
+                    <span style="font-weight:600; color:var(--text-muted);">EXECUTOR:</span>
+                    <span id="exec-val" style="font-family:var(--font-mono);">Waiting</span>
                 </div>
             </div>
-
-            <div class="panel output-panel">
-                <div class="panel-header">
-                    <span>Console Output</span>
-                    <button onclick="clearOutput()" style="background:none; border:none; color:#666; cursor:pointer; font-size:10px;">CLEAR</button>
-                </div>
-                <div id="output" class="output-content"></div>
-            </div>
-
-        </div>
+        </section>
     </div>
 
     <script>
+        // --- DATA CATALOG ---
+        const POLICIES = {
+            "FSAllowlistPolicy": {
+                "version": 1,
+                "name": "FSAllowlistPolicy",
+                "description": "Política de lista blanca para el sistema de archivos (Landlock). Bloquea todo por defecto (fs=deny) y solo permite rutas específicas.",
+                "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
+                "defaults": { "fs": "deny", "net": "allow", "exec": "allow" },
+                "fs": {
+                    "rules": [
+                        { "action": "allow", "path": "/usr/lib", "perms": ["read_file", "read_dir"] },
+                        { "action": "allow", "path": "/tmp", "perms": ["read_file", "write_file", "read_dir", "write_dir"] }
+                    ]
+                }
+            },
+            "NetEgressPolicy": {
+                "version": 1,
+                "name": "NetEgressPolicy",
+                "description": "Política de salida de red. Bloquea IMDS y redes privadas (RFC1918). Alerta en puertos sensibles (SSH, SMTP, DB).",
+                "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
+                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "net": {
+                    "rules": [
+                        { "action": "deny", "proto": "tcp", "cidr": "169.254.169.254/32", "ports": "80,443" },
+                        { "action": "deny", "proto": "tcp", "cidr": "169.254.0.0/16", "ports": "0-65535" },
+                        { "action": "deny", "proto": "tcp", "cidr": "10.0.0.0/8", "ports": "0-65535" },
+                        { "action": "deny", "proto": "tcp", "cidr": "172.16.0.0/12", "ports": "0-65535" },
+                        { "action": "deny", "proto": "tcp", "cidr": "192.168.0.0/16", "ports": "0-65535" },
+                        { "action": "warn", "proto": "tcp", "cidr": "0.0.0.0/0", "ports": "2222" },
+                        { "action": "warn", "proto": "tcp", "cidr": "0.0.0.0/0", "ports": "25" },
+                        { "action": "warn", "proto": "tcp", "cidr": "0.0.0.0/0", "ports": "3306" },
+                        { "action": "warn", "proto": "tcp", "cidr": "0.0.0.0/0", "ports": "5432" },
+                        { "action": "warn", "proto": "tcp", "cidr": "0.0.0.0/0", "ports": "6379" }
+                    ]
+                }
+            },
+            "ExecPolicy": {
+                "version": 1,
+                "name": "ExecPolicy",
+                "description": "Política de ejecución estricta. Solo permite ejecutar el intérprete de Python especificado.",
+                "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
+                "defaults": { "fs": "allow", "net": "allow", "exec": "deny" },
+                "exec": {
+                    "rules": [
+                        { "action": "allow", "path": "/usr/bin/python3.12" }
+                    ]
+                }
+            },
+            "AntiEscapePolicy": {
+                "version": 1,
+                "name": "AntiEscapePolicy",
+                "description": "Política anti-escape. Bloquea llamadas al sistema peligrosas (ptrace, bpf, mount, unshare, etc) para prevenir fugas.",
+                "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
+                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "antiEscape": {
+                    "denySyscalls": [
+                        "ptrace", "mount", "umount2", "bpf", "kexec_load", "unshare", 
+                        "setns", "clone3", "init_module", "finit_module", "perf_event_open", 
+                        "keyctl", "add_key"
+                    ]
+                }
+            },
+            "EBPFAuditPolicy": {
+                "version": 1,
+                "name": "EBPFAuditPolicy",
+                "description": "Política de auditoria eBPF. Registra eventos criticos (connect/openat/execve) sin bloquearlos.",
+                "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
+                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "audit": {
+                    "enabled": true,
+                    "events": ["connect", "openat", "execve"]
+                }
+            }
+        };
+
+        // --- APP STATE ---
+        let history = [];
+        let currentRun = null;
+        let currentTemplateName = 'Custom';
+
         const ws = new WebSocket(`ws://${location.host}/ws`);
-        const statusEl = document.getElementById('status');
-        const outputEl = document.getElementById('output');
         const editor = document.getElementById('editor');
+        const outputEl = document.getElementById('output');
+        const statusDot = document.getElementById('conn-dot');
+        const statusText = document.getElementById('conn-text');
+        
+        // --- UI INIT ---
+        const POLICY_COLORS = {
+            "FSAllowlistPolicy": "#22c55e", 
+            "NetEgressPolicy": "#3b82f6", 
+            "ExecPolicy": "#ef4444", 
+            "AntiEscapePolicy": "#a855f7", 
+            "EBPFAuditPolicy": "#f97316"
+        };
 
-        // State Elements
-        const bunStatus = document.getElementById('status-bun');
-        const pyStatus = document.getElementById('status-py');
-        const bunMsg = document.getElementById('state-bun-msg');
-        const pyMsg = document.getElementById('state-py-msg');
-        const lastSignal = document.getElementById('last-signal');
-        const healthEl = document.getElementById('buffer-health');
+        function initPolicyList() {
+            const container = document.getElementById('policy-list');
+            container.innerHTML = '';
 
+            Object.keys(POLICIES).forEach(key => {
+                const p = POLICIES[key];
+                const color = POLICY_COLORS[key] || '#71717a';
+
+                const card = document.createElement('div');
+                card.className = 'policy-card';
+                card.dataset.policy = key;
+                card.dataset.active = 'false';
+                card.dataset.expanded = 'false';
+                card.style.setProperty('--active-color', color);
+
+                card.innerHTML = `
+                    <div class="policy-card__accent"></div>
+                    <div class="policy-card__header" onclick="toggleCardExpand('${key}')">
+                        <div class="policy-card__info">
+                            <div class="policy-card__title">
+                                ${key}
+                            </div>
+                            <div class="policy-card__desc">${p.description || `Policy v${p.version || 1}`}</div>
+                        </div>
+                        <div class="policy-card__controls" onclick="event.stopPropagation()">
+                            <label class="toggle-switch" title="Enable/Disable Policy">
+                                <input type="checkbox" name="policy-active" onchange="setPolicyActive('${key}', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="expand-icon" onclick="event.stopPropagation(); toggleCardExpand('${key}')">▼</div>
+                        </div>
+                    </div>
+                    <div class="policy-card__body">
+                        ${getPolicyBodyHTML(key, p)}
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function setPolicyActive(key, enabled) {
+            const card = document.querySelector(`.policy-card[data-policy="${key}"]`);
+            if (!card) return;
+            card.dataset.active = enabled ? 'true' : 'false';
+            updatePolicySummary();
+        }
+
+        // --- TEMPLATES & UI HELPERS ---
+        let TEMPLATE_INDEX = [];
+
+        async function loadTemplateIndex() {
+            const sel = document.getElementById('template-select');
+            if (!sel) return;
+            try {
+                const res = await fetch('/examples');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const list = await res.json();
+                TEMPLATE_INDEX = Array.isArray(list) ? list : [];
+                sel.innerHTML = '';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.disabled = true;
+                placeholder.selected = true;
+                placeholder.textContent = 'Select Template...';
+                sel.appendChild(placeholder);
+                const groups = {};
+                TEMPLATE_INDEX.forEach((entry) => {
+                    const g = entry.group || 'Other';
+                    if (!groups[g]) groups[g] = [];
+                    groups[g].push(entry);
+                });
+
+                Object.keys(groups).forEach((groupName) => {
+                    const groupEl = document.createElement('optgroup');
+                    groupEl.label = groupName;
+                    groups[groupName].forEach((entry) => {
+                        const opt = document.createElement('option');
+                        opt.value = entry.id;
+                        opt.textContent = entry.label;
+                        if (entry.description) opt.title = entry.description;
+                        groupEl.appendChild(opt);
+                    });
+                    sel.appendChild(groupEl);
+                });
+            } catch (error) {
+                appendOutput(`ERROR: Failed to load templates (${error.message || error})\\n`, true);
+            }
+        }
+
+        async function loadTemplate() {
+            const sel = document.getElementById('template-select');
+            const val = sel?.value;
+            if (!val) return;
+            try {
+                const res = await fetch(`/examples/${val}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const text = await res.text();
+                editor.value = text;
+                // Update template name based on selection text
+                const opt = sel.options[sel.selectedIndex];
+                currentTemplateName = opt ? opt.text : val;
+                
+                if (window.updateHighlight) window.updateHighlight();
+                appendOutput(`>> Loaded template: ${val}\n`);
+            } catch (error) {
+                appendOutput(`ERROR: Failed to load template (${error.message || error})\\n`, true);
+            }
+        }
+
+        function mergeDefault(a, b) {
+            return a === 'deny' || b === 'deny' ? 'deny' : 'allow';
+        }
+
+        function updatePolicySummary() {
+            const policies = collectPolicies();
+            const stateEl = document.getElementById('summary-state');
+            const countEl = document.getElementById('summary-count');
+            const defaultsEl = document.getElementById('summary-defaults');
+            const rulesEl = document.getElementById('summary-rules');
+
+            if (countEl) countEl.textContent = `${policies.length} Active`;
+
+            let defaults = { fs: 'allow', net: 'allow', exec: 'allow' };
+            let rulesCount = 0;
+            let hasKernel = false;
+
+            policies.forEach(({ policy }) => {
+                if (!policy?.version) return;
+                hasKernel = true;
+                defaults.fs = mergeDefault(defaults.fs, policy.defaults?.fs || 'allow');
+                defaults.net = mergeDefault(defaults.net, policy.defaults?.net || 'allow');
+                defaults.exec = mergeDefault(defaults.exec, policy.defaults?.exec || 'allow');
+                rulesCount += (policy.fs?.rules?.length || 0);
+                rulesCount += (policy.net?.rules?.length || 0);
+                rulesCount += (policy.exec?.rules?.length || 0);
+                rulesCount += (policy.antiEscape?.denySyscalls?.length || 0);
+            });
+
+            if (defaultsEl) {
+                defaultsEl.textContent = `FS: ${defaults.fs} | NET: ${defaults.net} | EXEC: ${defaults.exec}`;
+            }
+            if (rulesEl) {
+                rulesEl.textContent = `Rules: ${rulesCount}`;
+            }
+
+            if (stateEl) {
+                if (policies.length === 0) {
+                    stateEl.textContent = 'Unrestricted';
+                } else if (!hasKernel) {
+                    stateEl.textContent = 'Legacy Set';
+                } else if (defaults.fs === 'deny' || defaults.net === 'deny' || defaults.exec === 'deny') {
+                    stateEl.textContent = 'Strict';
+                } else if (rulesCount > 0) {
+                    stateEl.textContent = 'Scoped';
+                } else {
+                    stateEl.textContent = 'Open';
+                }
+            }
+        }
+
+        function toggleCardExpand(key) {
+            const card = document.querySelector(`.policy-card[data-policy="${key}"]`);
+            if (!card) return;
+            const isExpanded = card.dataset.expanded === 'true';
+            const cards = document.querySelectorAll('.policy-card');
+            cards.forEach((other) => {
+                if (other !== card) {
+                    other.dataset.expanded = 'false';
+                }
+            });
+            card.dataset.expanded = isExpanded ? 'false' : 'true';
+        }
+
+        function createToggle(checked, attrs = '') {
+            return `
+            <label class="toggle-switch">
+                <input type="checkbox" ${checked ? 'checked' : ''} ${attrs}>
+                <span class="slider"></span>
+            </label>`;
+        }
+
+        function createSelect(options, selected, attrs = '') {
+            const opts = options.map(o => `<option value="${o}" ${o === selected ? 'selected' : ''}>${o.toUpperCase()}</option>`).join('');
+            return `<select class="policy-input-select" ${attrs}>${opts}</select>`;
+        }
+
+        function getPolicyBodyHTML(key, p) {
+            let html = '';
+
+            if (p.version) {
+                // KERNEL SCHEMA
+                html += `<div class="policy-section-title">Kernel Plugins</div>`;
+                html += Object.keys(p.plugins).map(k => `
+                    <div class="policy-row">
+                        <span>${k}</span>
+                        ${createToggle(p.plugins[k], `data-section="plugins" data-key="${k}"`)}
+                    </div>
+                `).join('');
+
+                html += `<div class="policy-section-title">Default Actions</div>`;
+                ['fs', 'net', 'exec'].forEach(type => {
+                     html += `
+                    <div class="policy-row">
+                        <span>${type.toUpperCase()}</span>
+                        ${createSelect(['allow', 'deny'], p.defaults[type], `data-section="defaults" data-key="${type}"`)}
+                    </div>`;
+                });
+
+                if (p.fs && p.fs.rules) {
+                    html += `<div class="policy-section-title">Filesystem Rules</div>`;
+                    p.fs.rules.forEach((r, index) => {
+                        html += `<div class="policy-rule" data-rule-section="fs" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                                ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
+                                <span style="font-size:0.65rem; color:var(--text-dim)">FS</span>
+                            </div>
+                            <input class="policy-input" data-field="path" value="${r.path}" style="margin-bottom:4px" placeholder="/path">
+                            <input class="policy-input" data-field="perms" value="${r.perms.join(', ')}" placeholder="read_file, write_file">
+                        </div>`;
+                    });
+                }
+
+                if (p.net && p.net.rules) {
+                    html += `<div class="policy-section-title">Network Rules <span class="tooltip" data-tooltip="RFC1918: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16" style="cursor:help;opacity:0.7">ℹ</span></div>`;
+                    p.net.rules.forEach((r, index) => {
+                        html += `<div class="policy-rule" data-rule-section="net" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                                ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
+                                <span style="font-size:0.65rem; color:var(--text-dim)">NET</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 2fr 1fr; gap:4px; margin-bottom:4px;">
+                                <input class="policy-input" data-field="proto" value="${r.proto || ''}" placeholder="tcp/udp">
+                                <input class="policy-input" data-field="cidr" value="${r.cidr || ''}" placeholder="0.0.0.0/0">
+                                <input class="policy-input" data-field="ports" value="${r.ports || ''}" placeholder="443">
+                            </div>
+                        </div>`;
+                    });
+                }
+
+                if (p.exec && p.exec.rules) {
+                    html += `<div class="policy-section-title">Execution Rules</div>`;
+                    p.exec.rules.forEach((r, index) => {
+                        html += `<div class="policy-rule" data-rule-section="exec" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
+                             <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                                ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
+                                <span style="font-size:0.65rem; color:var(--text-dim)">EXEC</span>
+                            </div>
+                            <input class="policy-input" data-field="path" value="${r.path || ''}" placeholder="binary path" style="margin-bottom:4px">
+                            <input class="policy-input" data-field="sha256" value="${r.sha256 || ''}" placeholder="sha256 hash (optional)">
+                        </div>`;
+                    });
+                }
+                
+                if (p.antiEscape && p.antiEscape.denySyscalls) {
+                      html += `<div class="policy-section-title">Anti-Escape (Syscalls)</div>`;
+                      html += `<textarea class="policy-input" data-section="antiEscape" data-key="denySyscalls" style="height:60px; resize:none;">${p.antiEscape.denySyscalls.join(', ')}</textarea>`;
+                }
+
+                if (p.audit) {
+                    html += `<div class="policy-section-title">Audit Log</div>`;
+                    html += `<div class="policy-row"><span>Enabled</span> ${createToggle(p.audit.enabled, `data-section="audit" data-key="enabled"`)}</div>`;
+                    html += `<div class="policy-section-title" style="margin-top:8px">Audit Events</div>`;
+                    html += `<textarea class="policy-input" data-section="audit" data-key="events" style="height:60px; resize:none;" placeholder="connect, openat...">${(p.audit.events||[]).join(', ')}</textarea>`;
+                }
+
+            } else {
+                // LEGACY SCHEMA
+                // Filesystem
+                if (p.filesystem) {
+                    html += `<div class="policy-section-title">Filesystem</div>`;
+                    html += `<div class="policy-row"><span>Allow Read</span> ${createToggle(p.filesystem.allowRead, `data-section="filesystem" data-key="allowRead"`)}</div>`;
+                    html += `<div class="policy-row"><span>Allow Write</span> ${createToggle(p.filesystem.allowWrite, `data-section="filesystem" data-key="allowWrite"`)}</div>`;
+                    
+                    html += `<div class="policy-section-title">Allow Paths</div>`;
+                    html += `<textarea class="policy-input" data-section="filesystem" data-key="allowPaths" style="height:40px">${(p.filesystem.allowPaths||[]).join('\n')}</textarea>`;
+                    
+                    html += `<div class="policy-section-title">Deny Paths</div>`;
+                    html += `<textarea class="policy-input" data-section="filesystem" data-key="denyPaths" style="height:40px">${(p.filesystem.denyPaths||[]).join('\n')}</textarea>`;
+                }
+                
+                // Network
+                if (p.network) {
+                    html += `<div class="policy-section-title">Network</div>`;
+                    html += `<div class="policy-row"><span>Deny External</span> ${createToggle(p.network.denyExternal, `data-section="network" data-key="denyExternal"`)}</div>`;
+                    html += `<div class="policy-row"><span>Allow Localhost</span> ${createToggle(p.network.allowLocalhost, `data-section="network" data-key="allowLocalhost"`)}</div>`;
+                    
+                    html += `<div class="policy-section-title">Allowed Domains</div>`;
+                    html += `<textarea class="policy-input" data-section="network" data-key="allowDomains" style="height:40px">${(p.network.allowDomains||[]).join(', ')}</textarea>`;
+                }
+
+                // Commands
+                if (p.commands) {
+                    html += `<div class="policy-section-title">Commands</div>`;
+                    html += `<div class="policy-row"><span>Allow Shell</span> ${createToggle(p.commands.allowShell, `data-section="commands" data-key="allowShell"`)}</div>`;
+                    html += `<div class="policy-row"><span>Allow Exec</span> ${createToggle(p.commands.allowExec, `data-section="commands" data-key="allowExec"`)}</div>`;
+                    html += `<div class="policy-row"><span>Allow Subprocess</span> ${createToggle(p.commands.allowSubprocess, `data-section="commands" data-key="allowSubprocess"`)}</div>`;
+                    
+                    html += `<div class="policy-section-title">Forbidden Commands</div>`;
+                    html += `<textarea class="policy-input" data-section="commands" data-key="forbiddenCommands" style="height:40px">${(p.commands.forbiddenCommands||[]).join(', ')}</textarea>`;
+                    
+                    html += `<div class="policy-section-title">Forbidden Modules</div>`;
+                    html += `<textarea class="policy-input" data-section="commands" data-key="forbiddenModules" style="height:40px">${(p.commands.forbiddenModules||[]).join(', ')}</textarea>`;
+                }
+
+                // Execution
+                if (p.execution) {
+                    html += `<div class="policy-section-title">Execution Limits</div>`;
+                    html += `<div class="policy-row"><span>Max Duration (ms)</span> <input class="policy-input" data-section="execution" data-key="maxDurationMs" style="width:80px" value="${p.execution.maxDurationMs||0}"></div>`;
+                    html += `<div class="policy-row"><span>Max Output (bytes)</span> <input class="policy-input" data-section="execution" data-key="maxOutputBytes" style="width:80px" value="${p.execution.maxOutputBytes||0}"></div>`;
+                    html += `<div class="policy-row"><span>Max Memory (MB)</span> <input class="policy-input" data-section="execution" data-key="maxMemoryMB" style="width:80px" value="${p.execution.maxMemoryMB||0}"></div>`;
+                    html += `<div class="policy-row"><span>Allow Inf. Loop</span> ${createToggle(p.execution.allowInfiniteLoop, `data-section="execution" data-key="allowInfiniteLoop"`)}</div>`;
+                }
+            }
+            
+            return html;
+        }
+
+        function parseList(value) {
+            if (!value) return [];
+            return value
+                .split(/[,\n]/)
+                .map((entry) => entry.trim())
+                .filter((entry) => entry.length > 0);
+        }
+
+        function readToggle(ctx, section, key) {
+            const input = ctx.querySelector(`input[data-section="${section}"][data-key="${key}"]`);
+            return input ? input.checked : false;
+        }
+
+        function readText(ctx, section, key) {
+            const input = ctx.querySelector(`[data-section="${section}"][data-key="${key}"]`);
+            return input ? input.value : '';
+        }
+
+        function collectRules(ctx, section) {
+            const groups = ctx.querySelectorAll(`.policy-rule[data-rule-section="${section}"]`);
+            return Array.from(groups).map(group => {
+                const action = group.querySelector('[data-field="action"]')?.value || 'deny';
+                if (section === 'fs') {
+                    const path = group.querySelector('[data-field="path"]')?.value || '';
+                    const perms = parseList(group.querySelector('[data-field="perms"]')?.value || '');
+                    return { action, path, perms };
+                }
+                if (section === 'net') {
+                    const proto = group.querySelector('[data-field="proto"]')?.value || '';
+                    const cidr = group.querySelector('[data-field="cidr"]')?.value || '';
+                    const ports = group.querySelector('[data-field="ports"]')?.value || '';
+                    return { action, proto, cidr, ports };
+                }
+                const path = group.querySelector('[data-field="path"]')?.value || '';
+                const sha256 = group.querySelector('[data-field="sha256"]')?.value || '';
+                return sha256 ? { action, path, sha256 } : { action, path };
+            });
+        }
+
+        function collectKernelPolicy(ctx, base, key) {
+            const denySyscalls = parseList(readText(ctx, 'antiEscape', 'denySyscalls'));
+            const auditEnabled = readToggle(ctx, 'audit', 'enabled');
+            const auditEvents = parseList(readText(ctx, 'audit', 'events'));
+            
+            const policy = {
+                version: 1,
+                plugins: {
+                    namespaces: readToggle(ctx, 'plugins', 'namespaces'),
+                    landlock: readToggle(ctx, 'plugins', 'landlock'),
+                    seccomp: readToggle(ctx, 'plugins', 'seccomp'),
+                },
+                defaults: {
+                    fs: readText(ctx, 'defaults', 'fs') || 'deny',
+                    net: readText(ctx, 'defaults', 'net') || 'deny',
+                    exec: readText(ctx, 'defaults', 'exec') || 'deny',
+                },
+            };
+
+            const fsRules = collectRules(ctx, 'fs');
+            const netRules = collectRules(ctx, 'net');
+            const execRules = collectRules(ctx, 'exec');
+
+            if (fsRules.length) policy.fs = { rules: fsRules };
+            if (netRules.length) policy.net = { rules: netRules };
+            if (execRules.length) policy.exec = { rules: execRules };
+            if (denySyscalls.length) policy.antiEscape = { denySyscalls };
+            if (auditEnabled || auditEvents.length) policy.audit = { enabled: auditEnabled, events: auditEvents };
+
+            return { key, policy };
+        }
+
+        function collectLegacyPolicy(ctx, base, key) {
+            const policy = {
+                name: base.name || key,
+                description: base.description || '',
+                filesystem: {
+                    allowRead: readToggle(ctx, 'filesystem', 'allowRead'),
+                    allowWrite: readToggle(ctx, 'filesystem', 'allowWrite'),
+                    allowPaths: parseList(readText(ctx, 'filesystem', 'allowPaths')),
+                    denyPaths: parseList(readText(ctx, 'filesystem', 'denyPaths')),
+                },
+                network: {
+                    denyExternal: readToggle(ctx, 'network', 'denyExternal'),
+                    allowLocalhost: readToggle(ctx, 'network', 'allowLocalhost'),
+                    allowDomains: parseList(readText(ctx, 'network', 'allowDomains')),
+                },
+                commands: {
+                    allowShell: readToggle(ctx, 'commands', 'allowShell'),
+                    allowExec: readToggle(ctx, 'commands', 'allowExec'),
+                    allowSubprocess: readToggle(ctx, 'commands', 'allowSubprocess'),
+                    forbiddenCommands: parseList(readText(ctx, 'commands', 'forbiddenCommands')),
+                    forbiddenModules: parseList(readText(ctx, 'commands', 'forbiddenModules')),
+                },
+                execution: {
+                    maxDurationMs: Number(readText(ctx, 'execution', 'maxDurationMs') || 0),
+                    maxOutputBytes: Number(readText(ctx, 'execution', 'maxOutputBytes') || 0),
+                    maxMemoryMB: Number(readText(ctx, 'execution', 'maxMemoryMB') || 0),
+                    allowInfiniteLoop: readToggle(ctx, 'execution', 'allowInfiniteLoop'),
+                },
+            };
+
+            return { key, policy };
+        }
+
+        function collectPolicies() {
+            const activeCards = Array.from(document.querySelectorAll('.policy-card[data-active="true"]'));
+            return activeCards.map((card) => {
+                const key = card.dataset.policy;
+                const base = POLICIES[key] || {};
+                if (base.version) {
+                    return collectKernelPolicy(card, base, key);
+                }
+                return collectLegacyPolicy(card, base, key);
+            });
+        }
+
+        function sendMessage(payload) {
+            ws.send(JSON.stringify(payload));
+        }
+
+        initPolicyList();
+        updatePolicySummary();
+        loadTemplateIndex();
+
+        const policyListEl = document.getElementById('policy-list');
+        if (policyListEl) {
+            policyListEl.addEventListener('change', (event) => {
+                const target = event.target;
+                if (target && target.closest('.policy-card')) {
+                    updatePolicySummary();
+                }
+            });
+        }
+
+        // --- WEBSOCKET HANDLERS ---
         ws.onopen = () => {
-            statusEl.textContent = 'Connected';
-            statusEl.classList.add('connected');
-            bunStatus.classList.add('active');
-            bunMsg.textContent = "Connected";
+            statusText.textContent = 'Connected';
+            statusDot.classList.add('connected');
+            updateState({ bun: 'Connected', python: 'Ready' });
         };
 
         ws.onclose = () => {
-            statusEl.textContent = 'Disconnected';
-            statusEl.classList.remove('connected');
-            bunStatus.classList.remove('active');
-            bunMsg.textContent = "Disconnected";
+            statusText.textContent = 'Disconnected';
+            statusDot.classList.remove('connected');
+            updateState({ bun: 'Disconnected', python: 'Offline' });
         };
 
         ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
-                
-                if (msg.type === 'memory') {
-                    updateMemoryPanel(msg.data);
-                } else if (msg.type === 'state') {
-                    updateStatePanel(msg.data);
-                } else {
-                    appendOutput(typeof msg === 'object' ? JSON.stringify(msg, null, 2) : msg);
+                switch(msg.type) {
+                    case 'memory': updateMemory(msg.data); break;
+                    case 'state': updateState(msg.data); break;
+                    case 'output': appendOutput(msg.data); break;
+                    case 'error': appendOutput(`ERROR: ${msg.data}\n`, true); break;
+                    case 'policy-loaded':
+                        break;
+                    case 'policy-set-loaded':
+                        break;
+                    case 'syscalls':
+                        updateSyscallHeatmap(msg.data);
+                        break;
+                    case 'audit-events':
+                        renderAuditEvents(msg.data);
+                        break;
+                    case 'audit-reset':
+                        resetAuditEvents();
+                        break;
+                    default: appendOutput(JSON.stringify(msg, null, 2) + "\n");
                 }
             } catch (e) {
-                appendOutput(event.data);
+                appendOutput(event.data + "\n");
             }
         };
 
-        function updateMemoryPanel(data) {
-            updateBufferCard('mem-bun2py', data.bun2py);
-            updateBufferCard('mem-py2bun', data.py2bun);
+        // --- UPDATE LOGIC ---
+        let lastTime = Date.now();
+        let lastMetrics = { b2p: 0, p2b: 0 };
 
-            const bunUsage = data.bun2py ? data.bun2py.usagePercent : 0;
-            const pyUsage = data.py2bun ? data.py2bun.usagePercent : 0;
-            const maxUsage = Math.max(bunUsage, pyUsage);
+        function updateMemory(data) {
+            const now = Date.now();
+            const deltaSec = (now - lastTime) / 1000;
             
-            // Health thresholds: <10 OK, 10-70 WARN, >70 HOT
-            healthEl.className = 'health-pill';
-            if (maxUsage < 10) {
-                healthEl.classList.add('ok');
-                healthEl.textContent = 'OK';
-            } else if (maxUsage < 70) {
-                healthEl.classList.add('warn');
-                healthEl.textContent = 'WARN';
-            } else {
-                healthEl.classList.add('hot');
-                healthEl.textContent = 'HOT';
+            // Bun -> Python
+            if (data.bun2py) {
+                const used = parseInt(data.bun2py.used || 0);
+                const capacity = parseInt(data.bun2py.capacity || 0);
+                // Throughput calc if head is available, else 0
+                const head = data.bun2py.head ? parseInt(data.bun2py.head) : 0;
+                const throughput = (deltaSec > 0 && head > 0) ? (head - lastMetrics.b2p) / deltaSec : 0;
+                
+                const free = parseInt(data.bun2py.free || 0);
+                document.getElementById('b2p-used').textContent = `${formatBytes(used)} / ${formatBytes(free)}`;
+                document.getElementById('b2p-rate').innerHTML = `${formatBytes(throughput)}<span class="stat-unit">/s</span>`;
+                
+                const util = data.bun2py.usagePercent || "0";
+                document.getElementById('b2p-util').innerHTML = `${util}<span class="stat-unit">%</span>`;
+                
+                const bar = document.getElementById('b2p-bar');
+                bar.style.width = `${util}%`;
+                if(parseFloat(util) > 80) bar.classList.add('high'); else bar.classList.remove('high');
+
+                if (head > 0) lastMetrics.b2p = head;
             }
+            
+            // Python -> Bun
+            if (data.py2bun) {
+                const used = parseInt(data.py2bun.used || 0);
+                const capacity = parseInt(data.py2bun.capacity || 0);
+                const head = data.py2bun.head ? parseInt(data.py2bun.head) : 0;
+                const throughput = (deltaSec > 0 && head > 0) ? (head - lastMetrics.p2b) / deltaSec : 0;
+                
+                const free = parseInt(data.py2bun.free || 0);
+                document.getElementById('p2b-used').textContent = `${formatBytes(used)} / ${formatBytes(free)}`;
+                document.getElementById('p2b-rate').innerHTML = `${formatBytes(throughput)}<span class="stat-unit">/s</span>`;
+
+                const util = data.py2bun.usagePercent || "0";
+                document.getElementById('p2b-util').innerHTML = `${util}<span class="stat-unit">%</span>`;
+                
+                const bar = document.getElementById('p2b-bar');
+                bar.style.width = `${util}%`;
+                if(parseFloat(util) > 80) bar.classList.add('high'); else bar.classList.remove('high');
+
+                if (head > 0) lastMetrics.p2b = head;
+            }
+            
+            if (deltaSec > 0.5) lastTime = now;
         }
 
-        function updateBufferCard(id, metrics) {
-            if (!metrics) return;
-            const el = document.getElementById(id);
-            if (!el) return;
+        function updateState(data) {
+            // Track Execution History
+            if (data.signal === 'WORKER_EVENT' && currentRun) {
+                if (data.python === 'exec_start') {
+                    currentRun.startTime = Date.now();
+                    currentRun.precise = true;
+                } else if (['exec_end', 'interrupted', 'exception'].includes(data.python)) {
+                    const duration = Date.now() - currentRun.startTime;
+                    const status = data.python === 'exec_end' ? 'success' : 'error';
+                    history.unshift({
+                        ...currentRun,
+                        duration,
+                        status,
+                        endTime: Date.now()
+                    });
+                    if (history.length > 50) history.pop();
+                    updateHistoryUI();
+                    currentRun = null;
+                }
+            }
 
-            el.querySelector('[data-key="head"]').textContent = metrics.head;
-            el.querySelector('[data-key="tail"]').textContent = metrics.tail;
-            el.querySelector('[data-key="used"]').textContent = formatBytes(metrics.used);
-            el.querySelector('[data-key="free"]').textContent = formatBytes(metrics.free);
+            const supEl = document.getElementById('sup-state');
+            const execEl = document.getElementById('exec-state');
             
-            const fill = el.querySelector('.usage-fill');
-            fill.style.width = `${metrics.usagePercent}%`;
-            
-            if (metrics.usagePercent > 70) fill.className = 'usage-fill high';
-            else fill.className = 'usage-fill';
-        }
-
-        function updateStatePanel(data) {
             if (data.bun) {
-                bunMsg.textContent = data.bun;
-                if (data.bun === 'Sending...') bunStatus.style.background = '#2196f3';
-                else bunStatus.style.background = '';
+                document.getElementById('sup-val').textContent = data.bun;
+                if (data.bun.includes('Sending')) supEl.classList.add('active');
+                else supEl.classList.remove('active');
             }
+            
             if (data.python) {
-                pyMsg.textContent = data.python;
-                if (data.python === 'Running') pyStatus.classList.add('active');
-                else pyStatus.classList.remove('active');
-            }
-            if (data.signal) {
-                lastSignal.textContent = data.signal;
-                lastSignal.style.opacity = '0.5';
-                setTimeout(() => { lastSignal.style.opacity = '1'; }, 100);
+                document.getElementById('exec-val').textContent = data.python;
+                if (data.python === 'Running') execEl.classList.add('running');
+                else execEl.classList.remove('running');
             }
         }
 
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        function updateHistoryUI() {
+            const container = document.getElementById('history-list');
+            if (!container) return;
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-dim); font-size:0.75rem">No executions yet</div>';
+                return;
+            }
+
+            container.innerHTML = history.map(item => {
+                const policyList = item.policies && item.policies.length ? item.policies.join(', ') : 'Unrestricted';
+                return `
+                <div class="history-item">
+                    <div class="history-header">
+                        <span class="history-name">${escapeHtml(item.name)}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="history-duration">${item.duration}ms</span>
+                            <div class="history-status ${item.status}"></div>
+                        </div>
+                    </div>
+                    <div class="history-meta">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;" title="${escapeHtml(policyList)}">${escapeHtml(policyList)}</span>
+                        <span>•</span>
+                        <span>${new Date(item.endTime).toLocaleTimeString()}</span>
+                    </div>
+                </div>
+            `}).join('');
         }
 
-        function appendOutput(text) {
-            outputEl.textContent += text;
+        function clearHistory() {
+            history = [];
+            updateHistoryUI();
+        }
+
+        function appendOutput(text, isError = false) {
+            const span = document.createElement('span');
+            span.textContent = text;
+            if (isError) span.style.color = 'var(--danger)';
+            outputEl.appendChild(span);
             outputEl.scrollTop = outputEl.scrollHeight;
         }
 
-        function clearOutput() {
-            outputEl.textContent = "";
+        function clearOutput() { outputEl.textContent = ''; }
+        function formatBytes(b) {
+            if (b===0) return '0';
+            const i = Math.floor(Math.log(b) / Math.log(1024));
+            return (b / Math.pow(1024, i)).toFixed(1) + ['B','KB','MB'][i];
         }
 
         function runCode() {
-            const code = editor.value;
-            ws.send(code); 
-            outputEl.textContent = ""; 
-            appendOutput(">> Sending code to Python...\n");
-        }
+            const policies = collectPolicies();
+            const activeKeys = policies.map(entry => entry.key);
+            
+            // Init run tracking
+            currentRun = {
+                name: currentTemplateName,
+                policies: activeKeys.length > 0 ? activeKeys : ['Unrestricted'],
+                startTime: Date.now(), // Fallback start time
+                precise: false
+            };
 
+            const activePolicies = policies.map(entry => entry.policy);
+            const onWarn = activePolicies.some(policy => policy.net && policy.net.rules && policy.net.rules.some(r => r.action === 'warn')) ? 'console' : undefined;
+            const payload = { type: 'run', code: editor.value, policyKeys: activeKeys, policies: activePolicies };
+            if (onWarn) payload.onWarn = onWarn;
+            sendMessage(payload);
+            appendOutput(">> Sending code to Executor...\n");
+        }
+        
         function stopCode() {
             ws.send("STOP");
-            appendOutput("\n>> Sending STOP signal...\n");
+            appendOutput(">> Sending STOP signal...\n");
         }
 
+        function enableAllPolicies() {
+            document.querySelectorAll('.policy-card').forEach(card => {
+                const key = card.dataset.policy;
+                const checkbox = card.querySelector('input[type="checkbox"][name="policy-active"]');
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                    setPolicyActive(key, true);
+                }
+            });
+        }
+
+        function disableAllPolicies() {
+            document.querySelectorAll('.policy-card').forEach(card => {
+                const key = card.dataset.policy;
+                const checkbox = card.querySelector('input[type="checkbox"][name="policy-active"]');
+                if (checkbox && checkbox.checked) {
+                    checkbox.checked = false;
+                    setPolicyActive(key, false);
+                }
+            });
+        }
+
+
+
+        function updateSyscallHeatmap(data) {
+            let counts = [];
+            let buckets = [];
+            
+            if (Array.isArray(data)) {
+                counts = data;
+                buckets = counts.map((_, i) => `syscall_${i}`);
+            } else if (data && typeof data === 'object') {
+                counts = data.counts || [];
+                buckets = data.buckets || [];
+            } else {
+                return;
+            }
+
+            const container = document.getElementById('syscall-heatmap');
+            if (!container) return;
+
+            // Clear if waiting message is present
+            if (container.firstElementChild && !container.firstElementChild.classList.contains('heatmap-item')) {
+                container.innerHTML = '';
+            }
+            
+            // Filter valid buckets (non-empty strings)
+            const validIndices = [];
+            buckets.forEach((b, i) => {
+                if (b && b.length > 0) validIndices.push(i);
+            });
+            
+            // Rebuild if item count mismatch
+            const currentItems = container.querySelectorAll('.heatmap-item');
+            if (currentItems.length !== validIndices.length) {
+                container.innerHTML = '';
+                validIndices.forEach(idx => {
+                    const label = buckets[idx];
+                    const div = document.createElement('div');
+                    div.className = 'heatmap-item';
+                    div.dataset.index = idx;
+                    div.innerHTML = `
+                        <div class="heatmap-color-box"></div>
+                        <span class="heatmap-label">${label}</span>
+                        <span class="heatmap-value">0</span>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+            
+            // Update values
+            const max = Math.max(...counts);
+            const items = container.querySelectorAll('.heatmap-item');
+            items.forEach(item => {
+                const idx = parseInt(item.dataset.index);
+                const count = counts[idx] || 0;
+                const intensity = max > 0 ? Math.min(1, count / max) : 0;
+                
+                const box = item.querySelector('.heatmap-color-box');
+                const val = item.querySelector('.heatmap-value');
+                
+                if (count > 0) {
+                     box.style.background = `rgba(250, 204, 21, ${0.2 + 0.8 * intensity})`;
+                     box.style.borderColor = `rgba(250, 204, 21, ${0.4 + 0.6 * intensity})`;
+                     val.style.color = 'var(--text-main)';
+                } else {
+                     box.style.background = 'var(--bg-input)';
+                     box.style.borderColor = 'var(--border)';
+                     val.style.color = 'var(--text-dim)';
+                }
+                val.textContent = count;
+            });
+        }
+
+        // Shortcuts
         editor.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
                 runCode();
             }
         });
+
+
+
+        // --- HIGHLIGHTING ---
+        const editorHighlight = document.getElementById('editor-highlight');
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function highlightCode(code) {
+            let html = escapeHtml(code);
+            
+            // 1. Strings
+            const strings = [];
+            html = html.replace(/("(?:[^"\\]|\\.)*")|('(?:[^'\\]|\\.)*')/g, (match) => {
+                strings.push(match);
+                return `__STR${strings.length-1}__`;
+            });
+
+            // 2. Comments
+            const comments = [];
+            html = html.replace(/(#.*$)/gm, (match) => {
+                comments.push(match);
+                return `__COM${comments.length-1}__`;
+            });
+
+            // 3. Keywords
+            const keywords = ['import', 'from', 'def', 'return', 'class', 'if', 'else', 'elif', 'while', 'for', 'in', 'try', 'except', 'finally', 'raise', 'print', 'as', 'pass', 'break', 'continue', 'with'];
+            const kwRegex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
+            html = html.replace(kwRegex, '<span class="hl-keyword">$1</span>');
+            
+            // 4. Numbers
+            html = html.replace(/\b(\d+)\b/g, '<span class="hl-number">$1</span>');
+            
+            // 5. Restore Comments (and resolve nested strings as plain text)
+            html = html.replace(/__COM(\d+)__/g, (_, i) => {
+                let text = comments[i];
+                // Resolve nested strings back to text without formatting
+                text = text.replace(/__STR(\d+)__/g, (_, j) => strings[j]);
+                return `<span class="hl-comment">${text}</span>`;
+            });
+            
+            // 6. Restore Strings (remaining ones are actual code strings)
+            html = html.replace(/__STR(\d+)__/g, (_, i) => `<span class="hl-string">${strings[i]}</span>`);
+            
+            return html; 
+        }
+
+        function updateHighlight() {
+            if (!editor || !editorHighlight) return;
+            let text = editor.value;
+            // Handle final newline
+            if (text[text.length-1] === "\n") text += " ";
+            
+            editorHighlight.innerHTML = highlightCode(text);
+        }
+
+        function syncScroll() {
+            if (!editor || !editorHighlight) return;
+            editorHighlight.scrollTop = editor.scrollTop;
+            editorHighlight.scrollLeft = editor.scrollLeft;
+        }
+
+        if (editor && editorHighlight) {
+            editor.addEventListener('input', updateHighlight);
+            editor.addEventListener('scroll', syncScroll);
+            // Initial
+            updateHighlight();
+        }
+
+        // --- AUDIT EVENTS ---
+        const auditListEl = document.getElementById('audit-list');
+        const MAX_AUDIT_ITEMS = 50;
+
+        function resetAuditEvents() {
+            if (!auditListEl) return;
+            auditListEl.innerHTML = '<div style="padding:8px; text-align:center; color:var(--text-dim)">Waiting for events...</div>';
+        }
+
+        function renderAuditEvents(events) {
+            if (!auditListEl || !Array.isArray(events)) return;
+            
+            // Clear "Waiting..." placeholder if present
+            if (auditListEl.children.length === 1 && auditListEl.firstElementChild.textContent.includes('Waiting')) {
+                auditListEl.innerHTML = '';
+            }
+
+            events.forEach(evt => {
+                // evt = { timestamp, syscall, pid, comm, target }
+                const div = document.createElement('div');
+                div.className = 'audit-item';
+                
+                const date = new Date(evt.timestamp || Date.now());
+                const timeStr = date.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                
+                div.innerHTML = `
+                    <span class="audit-time">${timeStr}</span>
+                    <span class="audit-syscall">${evt.syscall}</span>
+                    <span class="audit-target" title="${evt.target || ''}">${evt.target || '-'}</span>
+                `;
+                
+                // Prepend
+                auditListEl.insertBefore(div, auditListEl.firstChild);
+            });
+
+            // Prune
+            while (auditListEl.children.length > MAX_AUDIT_ITEMS) {
+                auditListEl.removeChild(auditListEl.lastChild);
+            }
+        }
     </script>
 </body>
 </html>

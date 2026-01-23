@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "plugins": {
+    "namespaces": true,
+    "landlock": true,
+    "seccomp": true
+  },
+  "defaults": {
+    "fs": "allow",
+    "net": "allow",
+    "exec": "allow"
+  },
+  "audit": {
+    "enabled": true,
+    "events": ["connect", "openat", "execve"]
+  }
+}

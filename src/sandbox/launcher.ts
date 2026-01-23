@@ -187,7 +187,11 @@ export class SandboxLauncher {
         // Prepare argv for execvp
         const buffers = cmd.map(s => Buffer.from(s + "\0"));
         const argv = new BigUint64Array(cmd.length + 1);
-        buffers.forEach((b, i) => argv[i] = BigInt(ptr(b)));
+        for (let i = 0; i < buffers.length; i += 1) {
+            const buffer = buffers[i];
+            if (!buffer) continue;
+            argv[i] = BigInt(ptr(buffer));
+        }
         argv[cmd.length] = 0n;
 
         const cmdBuf = Buffer.from(cmd[0] + "\0");
@@ -278,10 +282,13 @@ export class SandboxLauncher {
              libc.symbols._exit(1);
         }
 
-        const chdirRes = libc.symbols.chdir(Buffer.from("/\0"));
+        const chdirRes = libc.symbols.chdir(Buffer.from(cwd + "\0"));
         if (chdirRes !== 0) {
-             process.stdout.write(`[Sandbox] chdir failed\n`);
-             libc.symbols._exit(1);
+             const fallbackRes = libc.symbols.chdir(Buffer.from("/\0"));
+             if (fallbackRes !== 0) {
+                 process.stdout.write(`[Sandbox] chdir failed\n`);
+                 libc.symbols._exit(1);
+             }
         }
     }
 }
