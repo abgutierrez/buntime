@@ -1,6 +1,6 @@
-FROM oven/bun:1.3.6
+FROM oven/bun:1.3.6 AS build
 
-# Install Python3 and basic build tools + Networking tools
+# Build dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-dev \
@@ -20,8 +20,6 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install requests --break-system-packages
 
 # Install Zig (manually fetching binary since apt version might be old)
-# We keep Zig for future potential, but use GCC for the immediate fix if needed.
-# Actually, let's keep Zig installation as requested but try GCC for build first.
 RUN curl -L https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -o zig.tar.xz \
     && tar -xf zig.tar.xz \
     && mv zig-linux-x86_64-0.13.0 /usr/local/zig \
@@ -30,11 +28,35 @@ RUN curl -L https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -
 
 WORKDIR /app
 
-COPY . .
-
+COPY package.json bun.lock ./
 RUN bun install
 
-# Try building with GCC
+COPY . .
+
 RUN gcc -shared -o libshm.so -fPIC src/shm.c -lrt
 
-CMD ["bun", "src/main.ts"]
+FROM oven/bun:1.3.6 AS runtime
+
+# Runtime dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    ca-certificates \
+    curl \
+    xz-utils \
+    file \
+    iproute2 \
+    iputils-ping \
+    bpftrace \
+    netcat-openbsd \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install requests --break-system-packages
+
+WORKDIR /app
+
+COPY --from=build /app /app
+
+ENTRYPOINT ["bunx", "python-ipc-bun", "run"]
+CMD ["src/main.ts"]

@@ -3,20 +3,25 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "python-ipc-bun": "src/cli.ts"
+  },
   "scripts": {
     "app:docker": "docker compose up --build app",
     "app:docker:watch": "docker compose watch app",
-    "examples:matrix": "bun src/examples/policy-matrix.ts",
-    "examples:matrix:comprehensive": "bun src/examples/policy-matrix-comprehensive.ts",
+    "examples:matrix": "bun example/policy-matrix.ts",
+    "examples:matrix:comprehensive": "bun example/policy-matrix-comprehensive.ts",
     "test:docker": "docker compose run --rm test bun test",
     "test:docker:watch": "docker compose watch",
-    "test:comprehensive": "ENVIRONMENT=ALL WS_URL=ws://localhost:3000 bun src/examples/policy-matrix-comprehensive.ts",
-    "test:comprehensive:nopolicy": "ENVIRONMENT=NO_POLICY WS_URL=ws://localhost:3000 bun src/examples/policy-matrix-comprehensive.ts",
-    "test:comprehensive:default": "ENVIRONMENT=DEFAULT_POLICY WS_URL=ws://localhost:3000 bun src/examples/policy-matrix-comprehensive.ts",
-    "test:comprehensive:fs": "ENVIRONMENT=FS_ALLOWLIST_POLICY WS_URL=ws://localhost:3000 bun src/examples/policy-matrix-comprehensive.ts",
-    "test:comprehensive:net": "ENVIRONMENT=NET_EGRESS_POLICY WS_URL=ws://localhost:3000 bun src/examples/policy-matrix-comprehensive.ts",
-    "test:comprehensive:exec": "ENVIRONMENT=EXEC_POLICY WS_URL=ws://localhost:3000 bun src/examples/policy-matrix-comprehensive.ts",
-    "test:combinations": "WS_URL=ws://localhost:3000 bun src/examples/policy-matrix-combinations.ts"
+    "bench:compare": "bun example/bench/compare.ts",
+    "bench:report": "bun example/bench/report.ts",
+    "test:comprehensive": "ENVIRONMENT=ALL WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",
+    "test:comprehensive:nopolicy": "ENVIRONMENT=NO_POLICY WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",
+    "test:comprehensive:default": "ENVIRONMENT=DEFAULT_POLICY WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",
+    "test:comprehensive:fs": "ENVIRONMENT=FS_ALLOWLIST_POLICY WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",
+    "test:comprehensive:net": "ENVIRONMENT=NET_EGRESS_POLICY WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",
+    "test:comprehensive:exec": "ENVIRONMENT=EXEC_POLICY WS_URL=ws://localhost:3000 bun example/policy-matrix-comprehensive.ts",
+    "test:combinations": "WS_URL=ws://localhost:3000 bun example/policy-matrix-combinations.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

@@ -12,6 +12,7 @@ export class NetworkProxy {
 
     start() {
         const allowed = new Set(this.config.network.allow_list);
+        const denied = new Set(this.config.network.deny_list ?? []);
         console.log(`[Proxy] Starting TCP Proxy on port ${this.port}`);
 
         const encoder = new TextEncoder();
@@ -78,7 +79,9 @@ export class NetworkProxy {
 
                         console.log(`[Proxy] CONNECT ${hostname}:${port}`);
 
-                        if (!allowed.has("*") && !allowed.has(hostname) && !allowed.has("www." + (hostname || ""))) {
+                        const isDenied = denied.has("*") || denied.has(hostname) || denied.has("www." + (hostname || ""));
+                        const isAllowed = allowed.has("*") || allowed.has(hostname) || allowed.has("www." + (hostname || ""));
+                        if (isDenied || !isAllowed) {
                             console.warn(`[Proxy] BLOCKED: ${hostname}`);
                             socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
                             socket.end();
@@ -158,7 +161,9 @@ export class NetworkProxy {
 
                     console.log(`[Proxy] HTTP Request: ${hostname}`);
 
-                    if (!allowed.has(hostname) && !allowed.has("www." + hostname)) {
+                    const isDenied = denied.has("*") || denied.has(hostname) || denied.has("www." + hostname);
+                    const isAllowed = allowed.has("*") || allowed.has(hostname) || allowed.has("www." + hostname);
+                    if (isDenied || !isAllowed) {
                         console.warn(`[Proxy] BLOCKED: ${hostname}`);
                         socket.write("HTTP/1.1 403 Forbidden\r\nContent-Length: 19\r\n\r\nProxy Access Denied");
                         socket.end();

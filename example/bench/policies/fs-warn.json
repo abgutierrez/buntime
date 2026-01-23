@@ -9,5 +9,14 @@
     "fs": "deny",
     "net": "deny",
     "exec": "deny"
+  },
+  "fs": {
+    "rules": [
+      {
+        "action": "warn",
+        "path": "/tmp/bench.txt",
+        "perms": ["read_file", "write_file"]
+      }
+    ]
   }
 }

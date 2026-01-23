@@ -8,6 +8,7 @@ export interface SandboxConfig {
         enabled: boolean;
         policy: "allow_list" | "deny_all";
         allow_list: string[];
+        deny_list: string[];
         rate_limit: number;
     };
     filesystem: {
@@ -37,6 +38,7 @@ export async function loadConfig(path: string = "config.json"): Promise<SandboxC
             enabled: true,
             policy: "allow_list",
             allow_list: ["*"],
+            deny_list: [],
             rate_limit: 5
         },
         filesystem: { allow_write: false },

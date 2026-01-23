@@ -1,7 +1,7 @@
 import { join } from "path";
 import nodeCidr from "node-cidr";
-import { mergePolicies, buildOpenPolicy } from "../sandbox/policy/set";
-import type { FsPerm, Policy } from "../sandbox/policy/loader";
+import { mergePolicies, buildOpenPolicy } from "../src/sandbox/policy/set";
+import type { FsPerm, Policy } from "../src/sandbox/policy/loader";
 
 type Action = "allow" | "deny" | "warn";
 
@@ -22,7 +22,7 @@ interface ExampleSpec {
     exec?: { path: string };
 }
 
-const examplesDir = join(process.cwd(), "src/examples");
+const examplesDir = join(process.cwd(), "example");
 const policiesDir = join(process.cwd(), "src/policies");
 
 const POLICY_FILES = [

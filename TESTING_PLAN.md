@@ -34,7 +34,7 @@ bun run test:docker:watch
 - **Failure Mode**: Timeout if `libshm.so` is missing or ring buffer read/write fails
 
 #### 1.2 Policy Matrix (WebSocket Flow)
-- **File**: `src/examples/policy-matrix-comprehensive.ts` + `.spec.json`
+- **File**: `example/policy-matrix-comprehensive.ts` + `.spec.json`
 - **Flow**:
   1. Connect WebSocket → `ws://localhost:3000`
   2. Wait for `state` message (Python Ready)
@@ -320,8 +320,8 @@ When ready to execute:
 | `src/public/index.html` | UI implementation, policy management, WebSocket client |
 | `src/main.ts` | WebSocket server, example catalog, policy apply logic |
 | `src/ipc/server.ts` | IPCServer, ring buffer management, Python worker spawn |
-| `src/examples/policy-matrix-comprehensive.ts` | Integration test runner |
-| `src/examples/policy-matrix-comprehensive.spec.json` | Test case definitions |
+| `example/policy-matrix-comprehensive.ts` | Integration test runner |
+| `example/policy-matrix-comprehensive.spec.json` | Test case definitions |
 | `src/index.test.ts` | Unit test for IPC lifecycle |
 | `src/sandbox/policy/set.test.ts` | Unit test for policy parsing |
 | `src/worker.py` | Python-side IPC client |

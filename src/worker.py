@@ -349,7 +349,7 @@ def main():
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
     connected = False
-    for i in range(10):
+    for i in range(30):
         try:
             sock.connect(socket_path)
             connected = True

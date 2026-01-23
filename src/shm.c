@@ -21,10 +21,12 @@ int ipc_shm_open(const char* name, size_t name_len, size_t size) {
     int fd = shm_open(name_buf, O_CREAT | O_RDWR, 0666);
     if (fd < 0) return -1;
 
-    if (ftruncate(fd, (off_t)size) < 0) {
-        close(fd);
-        shm_unlink(name_buf);
-        return -1;
+    if (size > 0) {
+        if (ftruncate(fd, (off_t)size) < 0) {
+            close(fd);
+            shm_unlink(name_buf);
+            return -1;
+        }
     }
 
     return fd;

@@ -55,7 +55,11 @@ export class IPCServer {
     this.socketPath = join(process.cwd(), `bun-${Math.random().toString(36).slice(2)}.sock`);
   }
   
-  async start(pythonScript: string, config: SandboxConfig) {
+  async start(
+    command: string[],
+    config: SandboxConfig,
+    options: { env?: Record<string, string>; sandboxEnabled?: boolean } = {},
+  ) {
     console.log("[Bun] Starting IPC Server...");
 
     try { unlink(this.socketPath, () => {}); } catch {}
@@ -103,12 +107,13 @@ export class IPCServer {
 
     console.log(`[Bun] Socket created at ${this.socketPath}`);
 
-    const args = ["python3", pythonScript, this.socketPath, this.shmName, this.shmSize.toString()];
+    const args = [...command, this.socketPath, this.shmName, this.shmSize.toString()];
     
     // Prepare environment variables for the sandbox
     const env: Record<string, string> = {
-        // Propagate some existing env vars if needed?
-        "PYTHONUNBUFFERED": "1"
+        ...process.env,
+        "PYTHONUNBUFFERED": "1",
+        ...(options.env ?? {}),
     };
 
     let proxyEnabled = false;
@@ -133,7 +138,9 @@ export class IPCServer {
         }
     }
 
-    if (process.platform === "linux") {
+    const sandboxEnabled = options.sandboxEnabled ?? true;
+
+    if (process.platform === "linux" && sandboxEnabled) {
         try {
             console.log("[Bun] Using SandboxLauncher (Linux detected)");
             const { SandboxLauncher } = await import("../sandbox/launcher");
@@ -262,6 +269,10 @@ export class IPCServer {
         try {
             process.kill(this.sandboxPid, "SIGKILL");
         } catch {}
+    }
+    if (this.proxy) {
+        this.proxy.stop();
+        this.proxy = null;
     }
     if (this.server) this.server.stop();
     close(this.shmFd);

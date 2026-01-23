@@ -9,5 +9,15 @@
     "fs": "deny",
     "net": "deny",
     "exec": "deny"
+  },
+  "net": {
+    "rules": [
+      {
+        "action": "allow",
+        "proto": "tcp",
+        "cidr": "93.184.216.34/32",
+        "ports": "80"
+      }
+    ]
   }
 }
