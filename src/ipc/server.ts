@@ -49,10 +49,16 @@ export class IPCServer {
     this.py2bun.head = 0;
     this.py2bun.tail = 0;
 
-    // Use a socket in the current directory to ensure visibility in the sandbox
-    // (Since we mount process.cwd() into the sandbox)
-    // Avoids issues with /tmp recursion or isolation
-    this.socketPath = join(process.cwd(), `bun-${Math.random().toString(36).slice(2)}.sock`);
+    const socketName = `bun-${Math.random().toString(36).slice(2)}.sock`;
+    const socketDir = process.env.IPC_SOCKET_DIR ?? process.cwd();
+    let socketPath = join(socketDir, socketName);
+    if (socketPath.length >= 100) {
+      const fallbackDir = process.env.IPC_SOCKET_FALLBACK_DIR ?? "/tmp";
+      const fallbackPath = join(fallbackDir, socketName);
+      console.warn(`[Bun] Socket path too long (${socketPath.length}), using ${fallbackPath}`);
+      socketPath = fallbackPath;
+    }
+    this.socketPath = socketPath;
   }
   
   async start(

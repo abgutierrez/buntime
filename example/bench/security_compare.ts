@@ -44,8 +44,10 @@ const benchPath = process.env.BENCH_PATH ?? "/tmp/bench.txt";
 const benchUrl = process.env.BENCH_URL ?? "http://localhost:9";
 const allowHost = process.env.BENCH_ALLOW_HOST ?? "localhost";
 const denyHost = process.env.BENCH_DENY_HOST ?? "127.0.0.1";
+const targetPort = Number(process.env.BENCH_TARGET_PORT ?? "9");
 
 const cliMode = process.env.BENCH_CLI ?? "bunx";
+const benchWorker = process.env.BENCH_WORKER ?? "bun";
 const noSandbox = process.env.BENCH_NO_SANDBOX === "1";
 const defaultProxy = process.platform === "darwin" ? "http://127.0.0.1:8080" : undefined;
 const proxyOverride = process.env.BENCH_PROXY_URL ?? defaultProxy;
@@ -67,11 +69,23 @@ type ScriptConfig = {
   policyFlags: string[];
 };
 
+const fsReadScript =
+  benchWorker === "python" ? "example/bench/fs_read.py" : "example/bench/fs_read.ts";
+const netLabel = benchWorker === "python" ? "net_connect" : "net_fetch";
+const netScript =
+  benchWorker === "python"
+    ? "example/bench/net_connect.py"
+    : "example/bench/net_fetch.ts";
+const validationScript =
+  benchWorker === "python"
+    ? "example/bench/validation_stress.py"
+    : "example/bench/validation_stress.js";
+
 const scripts: ScriptConfig[] = [
   {
     id: "fs_read",
     label: "fs_read",
-    script: "example/bench/fs_read.ts",
+    script: fsReadScript,
     env: { BENCH_ITER: String(fsIterations) },
     policyFlags: [
       `--allow-read=${benchPath}`,
@@ -79,26 +93,35 @@ const scripts: ScriptConfig[] = [
     ],
   },
   {
-    id: "net_fetch",
-    label: "net_fetch",
-    script: "example/bench/net_fetch.ts",
-    env: {
-      BENCH_ITER: String(netIterations),
-      BENCH_URL: benchUrl,
-      BENCH_TIMEOUT_MS: String(netTimeoutMs),
-    },
+    id: netLabel,
+    label: netLabel,
+    script: netScript,
+    env:
+      benchWorker === "python"
+        ? {
+            BENCH_ITER: String(netIterations),
+            BENCH_HOST: allowHost,
+            BENCH_PORT: String(targetPort),
+            BENCH_TIMEOUT: String(netTimeoutMs / 1000),
+          }
+        : {
+            BENCH_ITER: String(netIterations),
+            BENCH_URL: benchUrl,
+            BENCH_TIMEOUT_MS: String(netTimeoutMs),
+          },
     policyFlags: [`--allow-net=${allowHost}`],
   },
   {
     id: "validation_stress",
     label: "validation_stress",
-    script: "example/bench/validation_stress.js",
+    script: validationScript,
     env: {
       BENCH_FS_OPS: String(validationFsOps),
       BENCH_NET_OPS: String(validationNetOps),
       BENCH_FS_WRITE_EVERY: String(validationWriteEvery),
       BENCH_ALLOW_HOST: allowHost,
       BENCH_DENY_HOST: denyHost,
+      BENCH_TARGET_PORT: String(targetPort),
     },
     policyFlags: [
       `--allow-read=${benchPath}`,
@@ -111,8 +134,8 @@ const scripts: ScriptConfig[] = [
 function buildCliArgs(script: string, flags: string[]) {
   const args =
     cliMode === "bun"
-      ? ["src/cli.ts", "run", "--worker", "bun"]
-      : ["python-ipc-bun", "run", "--worker", "bun"];
+      ? ["src/cli.ts", "run", "--worker", benchWorker]
+      : ["python-ipc-bun", "run", "--worker", benchWorker];
   if (noSandbox) {
     args.push("--no-sandbox");
   }
@@ -165,12 +188,15 @@ const scenarios: Scenario[] = [];
 for (const script of scripts) {
   const baseEnvForScript = { ...baseEnv, ...script.env };
 
+  const nativeCommand = script.script.endsWith(".py") ? "python3" : "bun";
+  const nativeArgs = [script.script];
+
   scenarios.push({
     id: `${script.id}_native`,
     label: `${script.label} native`,
     script: script.script,
-    command: "bun",
-    args: [script.script],
+    command: nativeCommand,
+    args: nativeArgs,
     env: baseEnvForScript,
   });
 
