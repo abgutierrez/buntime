@@ -1,24 +1,25 @@
 {
   "policyKeys": [
+    "policy-file",
     "cli-flags"
   ],
-  "policyCount": 1,
+  "policyCount": 2,
   "defaults": {
-    "fs": "allow",
-    "net": "allow",
-    "exec": "allow"
+    "fs": "deny",
+    "net": "deny",
+    "exec": "deny"
   },
   "rules": {
-    "fs": 0,
+    "fs": 1,
     "net": 0,
     "exec": 0,
     "antiEscape": 0,
-    "total": 0
+    "total": 1
   },
   "audit": {
     "enabled": false,
     "events": []
   },
   "source": "boot",
-  "appliedAt": "2026-01-24T15:04:42.358Z"
+  "appliedAt": "2026-01-26T16:47:05.332Z"
 }

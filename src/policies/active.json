@@ -6,8 +6,20 @@
     "seccomp": true
   },
   "defaults": {
-    "fs": "allow",
-    "net": "allow",
-    "exec": "allow"
+    "fs": "deny",
+    "net": "deny",
+    "exec": "deny"
+  },
+  "fs": {
+    "rules": [
+      {
+        "action": "deny",
+        "path": "/tmp/bench.txt",
+        "perms": [
+          "read_file",
+          "write_file"
+        ]
+      }
+    ]
   }
 }

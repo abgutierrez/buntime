@@ -4,6 +4,9 @@ import { unlink } from "node:fs";
 import { NetworkProxy } from "../proxy";
 import { type SandboxConfig } from "../config";
 import { join } from "path";
+import { MsgType, ResponseType } from "./protocol";
+
+export type CheckCallback = (type: MsgType, payload: Uint8Array) => { allowed: boolean };
 
 export class IPCServer {
   private shmFd: number;
@@ -20,13 +23,20 @@ export class IPCServer {
   private processHandle: ReturnType<typeof Bun.spawn> | undefined;
   private sandboxPid: number | undefined; // Store PID for manual management
   private onMessage?: (data: Uint8Array) => void;
+  private onCheck?: CheckCallback;
   private onStateChange?: (state: string, signal?: string) => void;
   private sendState?: (state: string, signal?: string) => void;
   
-  constructor(shmName: string, size: number = 1024 * 1024, onMessage?: (data: Uint8Array) => void) {
+  constructor(
+    shmName: string, 
+    size: number = 1024 * 1024, 
+    onMessage?: (data: Uint8Array) => void,
+    onCheck?: CheckCallback
+  ) {
     this.shmName = shmName;
     this.shmSize = size;
     this.onMessage = onMessage;
+    this.onCheck = onCheck;
     
     shmUnlink(shmName);
     
@@ -87,7 +97,7 @@ export class IPCServer {
             if (msg.trim() === "READY") {
                console.log("[Bun] Python is ready");
                if (that.onStateChange) that.onStateChange("Ready", "READY");
-            } else if (msg.trim() === "DATA") {
+            } else if (msg.trim() === "DATA" || msg.trim() === "CHECK") {
                that.handleData();
             } else {
                try {
@@ -216,11 +226,58 @@ export class IPCServer {
     while (true) {
         const msg = this.py2bun.read();
         if (!msg) break;
+
+        if (msg.length >= 5) {
+            const type = msg[0] as MsgType;
+            if (type === MsgType.STDOUT) {
+                if (this.onMessage) {
+                    this.onMessage(msg.subarray(5));
+                }
+                continue;
+            }
+
+            const reqId = new DataView(msg.buffer, msg.byteOffset, msg.byteLength).getUint32(1, true);
+            const payload = msg.subarray(5);
+
+            if (this.onCheck) {
+                const result = this.onCheck(type, payload);
+                if (!result.allowed) {
+                    if (type === MsgType.FS_READ || type === MsgType.LISTDIR) {
+                         console.error(`[Bun] Optimistic Violation (Type ${type})! Killing worker.`);
+                         this.stop();
+                         return;
+                    }
+                    this.sendResponse(reqId, ResponseType.DENY);
+                } else {
+                    if (type !== MsgType.FS_READ && type !== MsgType.LISTDIR) {
+                        this.sendResponse(reqId, ResponseType.ALLOW);
+                    }
+                }
+            }
+            continue;
+        }
         
         if (this.onMessage) {
             this.onMessage(msg);
         }
     }
+  }
+
+  sendResponse(reqId: number, type: ResponseType) {
+    const buf = new Uint8Array(5);
+    const view = new DataView(buf.buffer);
+    view.setUint8(0, type);
+    view.setUint32(1, reqId, true);
+    this.send(buf);
+  }
+
+  sendOp(type: MsgType, payload: Uint8Array) {
+    const buf = new Uint8Array(5 + payload.length);
+    const view = new DataView(buf.buffer);
+    view.setUint8(0, type);
+    view.setUint32(1, 0, true);
+    buf.set(payload, 5);
+    return this.send(buf);
   }
   
   send(data: Uint8Array) {
