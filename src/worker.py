@@ -139,11 +139,13 @@ class PolicyClient:
         header = struct.pack("<BI", type_code, req_id)
         msg = header + payload_bytes
 
+        backoff = 0.0001
         while True:
             n = self.py2bun.write(msg)
             if n > 0:
                 break
-            time.sleep(0.001)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 0.001)
 
         try:
             self.sock.sendall(b"CHECK\n")
@@ -155,11 +157,13 @@ class PolicyClient:
         header = struct.pack("<BI", type_code, req_id)
         msg = header + payload_bytes
 
+        backoff = 0.0001
         while True:
             n = self.py2bun.write(msg)
             if n > 0:
                 break
-            time.sleep(0.001)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 0.001)
 
         try:
             self.sock.sendall(b"CHECK\n")
@@ -210,6 +214,7 @@ class ShmOut:
         full_msg = header + data
 
         total_written = 0
+        backoff = 0.0001
         while True:
             n = self.rb.write(full_msg)
             if n > 0:
@@ -219,7 +224,8 @@ class ShmOut:
                     break
                 return len(data)  # Pretend we wrote the text length
             else:
-                time.sleep(0.001)
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 0.001)
 
     def flush(self):
         pass
@@ -352,11 +358,14 @@ def main():
     output_capture = ShmOut(py2bun, sock)
 
     try:
+        idle_backoff = 0.0001
         while True:
             msg = bun2py.read()
             if msg is None:
-                time.sleep(0.001)
+                time.sleep(idle_backoff)
+                idle_backoff = min(idle_backoff * 2, 0.001)
                 continue
+            idle_backoff = 0.0001
 
             # [Type: 1][ReqID: 4][Payload: N]
             if len(msg) < 5:

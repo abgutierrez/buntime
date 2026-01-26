@@ -109,25 +109,47 @@ export class NetworkProxy {
 
         const encoder = new TextEncoder();
         const decoder = new TextDecoder();
-        const concatBytes = (a: Uint8Array, b: Uint8Array) => {
-            const merged = new Uint8Array(a.length + b.length);
-            merged.set(a, 0);
-            merged.set(b, a.length);
-            return merged;
-        };
         const headerTerminator = encoder.encode("\r\n\r\n");
-        const findHeaderEnd = (data: Uint8Array) => {
-            for (let i = 0; i <= data.length - headerTerminator.length; i += 1) {
-                let match = true;
-                for (let j = 0; j < headerTerminator.length; j += 1) {
-                    if (data[i + j] !== headerTerminator[j]) {
-                        match = false;
-                        break;
+        const findHeaderEndInChunks = (chunks: Uint8Array[]) => {
+            let matchIndex = 0;
+            let offset = 0;
+            for (const chunk of chunks) {
+                for (let i = 0; i < chunk.length; i += 1) {
+                    if (chunk[i] === headerTerminator[matchIndex]) {
+                        matchIndex += 1;
+                        if (matchIndex === headerTerminator.length) {
+                            return offset + i + 1;
+                        }
+                    } else {
+                        matchIndex = chunk[i] === headerTerminator[0] ? 1 : 0;
                     }
                 }
-                if (match) return i + headerTerminator.length;
+                offset += chunk.length;
             }
             return -1;
+        };
+        const splitChunks = (chunks: Uint8Array[], headerEnd: number, totalLength: number) => {
+            const headerBytes = new Uint8Array(headerEnd);
+            const restBytes = new Uint8Array(totalLength - headerEnd);
+            let headerOffset = 0;
+            let restOffset = 0;
+            let remaining = headerEnd;
+            for (const chunk of chunks) {
+                if (remaining > 0) {
+                    const take = Math.min(chunk.length, remaining);
+                    headerBytes.set(chunk.subarray(0, take), headerOffset);
+                    headerOffset += take;
+                    remaining -= take;
+                    if (take < chunk.length) {
+                        restBytes.set(chunk.subarray(take), restOffset);
+                        restOffset += chunk.length - take;
+                    }
+                } else {
+                    restBytes.set(chunk, restOffset);
+                    restOffset += chunk.length;
+                }
+            }
+            return { headerBytes, restBytes };
         };
 
         this.server = Bun.listen({
@@ -135,7 +157,11 @@ export class NetworkProxy {
             port: this.port,
             socket: {
                 data(socket, data) {
-                    const s = socket as { remoteSocket?: { write: (chunk: Uint8Array) => void; end: () => void }; buffer?: Uint8Array | null };
+                    const s = socket as {
+                        remoteSocket?: { write: (chunk: Uint8Array) => void; end: () => void };
+                        bufferChunks?: Uint8Array[] | null;
+                        bufferLength?: number;
+                    };
                     
                     if (s.remoteSocket) {
                         try {
@@ -147,16 +173,26 @@ export class NetworkProxy {
                     }
 
                     const chunk = data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer);
-                    s.buffer = s.buffer ? concatBytes(s.buffer, chunk) : chunk;
+                    if (!s.bufferChunks) {
+                        s.bufferChunks = [];
+                        s.bufferLength = 0;
+                    }
+                    s.bufferChunks.push(chunk);
+                    s.bufferLength = (s.bufferLength ?? 0) + chunk.length;
 
-                    const headerEnd = findHeaderEnd(s.buffer);
+                    const headerEnd = findHeaderEndInChunks(s.bufferChunks);
                     if (headerEnd === -1) {
                         return;
                     }
 
-                    const headerBytes = s.buffer.slice(0, headerEnd);
-                    const rest = s.buffer.slice(headerEnd);
-                    s.buffer = null;
+                    const { headerBytes, restBytes } = splitChunks(
+                        s.bufferChunks,
+                        headerEnd,
+                        s.bufferLength ?? headerEnd,
+                    );
+                    s.bufferChunks = null;
+                    s.bufferLength = 0;
+                    const rest = restBytes;
 
                     const headerText = decoder.decode(headerBytes);
                     const lines = headerText.split("\r\n");
@@ -238,7 +274,13 @@ export class NetworkProxy {
                     const headerLines = [newRequestLine, ...lines.slice(1)];
                     const rebuiltHeaders = `${headerLines.join("\r\n")}\r\n\r\n`;
                     const forwardHeader = encoder.encode(rebuiltHeaders);
-                    const forwardData = rest.length > 0 ? concatBytes(forwardHeader, rest) : forwardHeader;
+                    const forwardData = rest.length > 0
+                        ? new Uint8Array(forwardHeader.length + rest.length)
+                        : forwardHeader;
+                    if (rest.length > 0) {
+                        forwardData.set(forwardHeader, 0);
+                        forwardData.set(rest, forwardHeader.length);
+                    }
 
                     Bun.connect({
                         hostname: hostname || "localhost",

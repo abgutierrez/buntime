@@ -133,7 +133,11 @@ export class IPCServer {
     };
 
     let proxyEnabled = false;
-    if (config.network.enabled) {
+    const allowAllNetwork =
+        config.network.policy === "allow_list" &&
+        config.network.allow_list.includes("*") &&
+        (config.network.deny_list ?? []).length === 0;
+    if (config.network.enabled && !allowAllNetwork) {
         try {
             // Start Proxy
             this.proxy = new NetworkProxy(config, 8080);
@@ -152,6 +156,8 @@ export class IPCServer {
             // Also set NO_PROXY for localhost/127.0.0.1 just in case, though we have no localhost in sandbox
             env["NO_PROXY"] = "localhost,127.0.0.1";
         }
+    } else if (config.network.enabled && allowAllNetwork) {
+        console.log("[Bun] Network proxy skipped (allow-all)");
     }
 
     const sandboxEnabled = options.sandboxEnabled ?? true;
