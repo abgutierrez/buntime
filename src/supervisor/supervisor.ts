@@ -40,6 +40,7 @@ type SyscallBucket = (typeof SYSCALL_BUCKETS)[number];
 
 export class Supervisor {
   private sockets = new Set<any>();
+  private decoder = new TextDecoder();
   private activePolicy: NormalizedPolicy | null = null;
   private enforcer: PolicyEnforcer | null = null;
   private activePolicySetMeta: PolicySetMeta | null = null;
@@ -121,7 +122,7 @@ export class Supervisor {
         (type, payload) => this.handlePolicyCheck(type, payload)
       );
 
-      this.ipcServer.setOnStateChange((state, signal) => {
+      this.ipcServer.setOnStateChange((state, signal, data) => {
         if (signal === "WORKER_EVENT" && state === "exec_start") {
           this.syscallCounts.clear();
           this.auditEventQueue.length = 0;
@@ -131,7 +132,7 @@ export class Supervisor {
         }
         this.emit({
           type: "state",
-          data: { python: state, signal },
+          data: { worker: state, signal, ...data },
         });
       });
 
@@ -225,10 +226,8 @@ export class Supervisor {
   private handlePolicyCheck(type: MsgType, payload: Uint8Array): { allowed: boolean } {
     if (!this.enforcer) return { allowed: true };
 
-    const decoder = new TextDecoder();
-    
     if (type === MsgType.FS_READ || type === MsgType.FS_WRITE || type === MsgType.LISTDIR) {
-        const path = decoder.decode(payload);
+        const path = this.decoder.decode(payload);
         const perm = type === MsgType.FS_WRITE ? "write_file" : 
                      type === MsgType.LISTDIR ? "read_dir" : "read_file";
         const action = this.enforcer.checkFs(path, perm);
@@ -240,7 +239,7 @@ export class Supervisor {
     }
 
     if (type === MsgType.EXEC) {
-        const path = decoder.decode(payload);
+        const path = this.decoder.decode(payload);
         const action = this.enforcer.checkExec(path);
         if (action === "warn") {
             console.log(`[Audit] warn exec ${path}`);
@@ -251,7 +250,7 @@ export class Supervisor {
 
     if (type === MsgType.NET_CONNECT) {
         try {
-            const str = decoder.decode(payload);
+            const str = this.decoder.decode(payload);
             const parts = str.split(":");
             if (parts.length !== 2) return { allowed: false };
             const host = parts[0];
