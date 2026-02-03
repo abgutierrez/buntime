@@ -927,8 +927,9 @@ except Exception as e:
                 "version": 1,
                 "name": "FSAllowlistPolicy",
                 "description": "Política de lista blanca para el sistema de archivos (Landlock). Bloquea todo por defecto (fs=deny) y solo permite rutas específicas.",
+                "domains": ["fs"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "deny", "net": "allow", "exec": "allow" },
+                "defaults": { "fs": "deny" },
                 "fs": {
                     "rules": [
                         { "action": "allow", "path": "/usr/lib", "perms": ["read_file", "read_dir"] },
@@ -940,8 +941,9 @@ except Exception as e:
                 "version": 1,
                 "name": "NetEgressPolicy",
                 "description": "Política de salida de red. Bloquea IMDS y redes privadas (RFC1918). Alerta en puertos sensibles (SSH, SMTP, DB).",
+                "domains": ["net"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "defaults": { "net": "allow" },
                 "net": {
                     "rules": [
                         { "action": "deny", "proto": "tcp", "cidr": "169.254.169.254/32", "ports": "80,443" },
@@ -961,8 +963,9 @@ except Exception as e:
                 "version": 1,
                 "name": "ExecPolicy",
                 "description": "Política de ejecución estricta. Solo permite ejecutar el intérprete de Python especificado.",
+                "domains": ["exec"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "deny" },
+                "defaults": { "exec": "deny" },
                 "exec": {
                     "rules": [
                         { "action": "allow", "path": "/usr/bin/python3.12" }
@@ -973,8 +976,9 @@ except Exception as e:
                 "version": 1,
                 "name": "AntiEscapePolicy",
                 "description": "Política anti-escape. Bloquea llamadas al sistema peligrosas (ptrace, bpf, mount, unshare, etc) para prevenir fugas.",
+                "domains": ["antiEscape"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "defaults": {},
                 "antiEscape": {
                     "denySyscalls": [
                         "ptrace", "mount", "umount2", "bpf", "kexec_load", "unshare", 
@@ -987,11 +991,39 @@ except Exception as e:
                 "version": 1,
                 "name": "EBPFAuditPolicy",
                 "description": "Política de auditoria eBPF. Registra eventos criticos (connect/openat/execve) sin bloquearlos.",
+                "domains": ["audit"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "defaults": {},
                 "audit": {
                     "enabled": true,
                     "events": ["connect", "openat", "execve"]
+                }
+            },
+            "LambdaBackendPolicy": {
+                "version": 1,
+                "name": "LambdaBackendPolicy",
+                "description": "Production-ready lambda-like environment.",
+                "domains": ["fs", "net", "exec"],
+                "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
+                "defaults": { "fs": "deny", "net": "allow", "exec": "deny" },
+                "fs": {
+                    "rules": [
+                        { "action": "allow", "path": "/tmp", "perms": ["read_file", "write_file", "read_dir", "write_dir"] },
+                        { "action": "allow", "path": "/var/task", "perms": ["read_file", "read_dir"] }
+                    ]
+                },
+                "net": {
+                    "rules": [
+                        { "action": "deny", "proto": "tcp", "cidr": "10.0.0.0/8", "ports": "0-65535" },
+                        { "action": "deny", "proto": "tcp", "cidr": "172.16.0.0/12", "ports": "0-65535" },
+                        { "action": "deny", "proto": "tcp", "cidr": "192.168.0.0/16", "ports": "0-65535" },
+                        { "action": "allow", "proto": "tcp", "cidr": "0.0.0.0/0", "ports": "0-65535" }
+                    ]
+                },
+                "exec": {
+                    "rules": [
+                        { "action": "allow", "path": "/usr/bin/python3" }
+                    ]
                 }
             }
         };
@@ -1013,7 +1045,8 @@ except Exception as e:
             "NetEgressPolicy": "#3b82f6", 
             "ExecPolicy": "#ef4444", 
             "AntiEscapePolicy": "#a855f7", 
-            "EBPFAuditPolicy": "#f97316"
+            "EBPFAuditPolicy": "#f97316",
+            "LambdaBackendPolicy": "#06b6d4"
         };
 
         function initPolicyList() {
