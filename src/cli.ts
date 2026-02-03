@@ -155,13 +155,18 @@ async function runCommand(parsed: ParsedArgs) {
   const finalState = await waitForState(
     supervisor,
     (data) =>
-      ["exec_end", "exception", "interrupted"].includes(data?.python),
+      ["exec_end", "exception", "interrupted"].includes(data?.worker),
     120000,
   );
 
   supervisor.stop();
 
-  if (finalState?.python !== "exec_end") {
+  const exitCode = finalState?.exitCode ?? finalState?.exit_code;
+  if (exitCode !== undefined) {
+    process.exit(exitCode);
+  }
+
+  if (finalState?.worker !== "exec_end") {
     process.exit(1);
   }
 }
@@ -324,14 +329,14 @@ function parseSize(value?: string) {
 
 function printUsage() {
   console.log(`
-python-ipc-bun <command> [options]
+buntime <command> [options]
 
 Commands:
   run <entry>            Run a script inside the supervisor
   init-policy            Print a policy JSON built from flags
 
 Examples:
-  bunx python-ipc-bun run --allow-net=github.com main.ts
-  bunx python-ipc-bun run --allow-read=/tmp --deny-net main.py
+  bunx buntime run --allow-net=github.com main.ts
+  bunx buntime run --allow-read=/tmp --deny-net main.py
 `);
 }

@@ -120,9 +120,9 @@ while (true) {
     if (result !== undefined) {
       await writeOutput(String(result) + "\n");
     }
-    sendState("exec_end", { success: true });
+    sendState("exec_end", { success: true, exitCode: 0 });
   } catch (error: any) {
-    sendState("exception", { error: error?.message ?? String(error) });
+    sendState("exception", { error: error?.message ?? String(error), exitCode: 1 });
     await writeOutput(`${error?.stack ?? error}\n`);
   }
 }

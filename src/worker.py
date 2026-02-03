@@ -395,14 +395,14 @@ def main():
                             print(result)
                     except SyntaxError:
                         exec(code_str, global_context)
-                    send_state(sock, "exec_end", {"success": True})
+                    send_state(sock, "exec_end", {"success": True, "exitCode": 0})
                 except KeyboardInterrupt:
                     send_state(sock, "interrupted")
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 type_name = exc_type.__name__ if exc_type else "Exception"
                 error_msg = f"{type_name}: {exc_value}"
-                send_state(sock, "exception", {"error": error_msg})
+                send_state(sock, "exception", {"error": error_msg, "exitCode": 1})
                 lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
                 print("".join(lines))
             finally:
