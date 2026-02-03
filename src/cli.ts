@@ -161,7 +161,11 @@ async function runCommand(parsed: ParsedArgs) {
 
   supervisor.stop();
 
-  const exitCode = finalState?.exitCode ?? finalState?.exit_code;
+  const exitCode =
+    finalState?.data?.exitCode ??
+    finalState?.data?.exit_code ??
+    finalState?.exitCode ??
+    finalState?.exit_code;
   if (exitCode !== undefined) {
     process.exit(exitCode);
   }
