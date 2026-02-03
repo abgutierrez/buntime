@@ -24,8 +24,8 @@ export class IPCServer {
   private sandboxPid: number | undefined; // Store PID for manual management
   private onMessage?: (data: Uint8Array) => void;
   private onCheck?: CheckCallback;
-  private onStateChange?: (state: string, signal?: string) => void;
-  private sendState?: (state: string, signal?: string) => void;
+  private onStateChange?: (state: string, signal?: string, data?: any) => void;
+  private sendState?: (state: string, signal?: string, data?: any) => void;
   
   constructor(
     shmName: string, 
@@ -102,9 +102,9 @@ export class IPCServer {
             } else {
                try {
                    const payload = JSON.parse(msg);
-                   if (payload.type === "state" && that.onStateChange) {
-                       that.onStateChange(payload.event, "WORKER_EVENT");
-                   }
+                    if (payload.type === "state" && that.onStateChange) {
+                        that.onStateChange(payload.event, "WORKER_EVENT", payload);
+                    }
                } catch {
                    // Ignore non-JSON worker messages.
                }
@@ -302,7 +302,7 @@ export class IPCServer {
     }
   }
 
-  setOnStateChange(callback: (state: string, signal?: string) => void) {
+  setOnStateChange(callback: (state: string, signal?: string, data?: any) => void) {
     this.onStateChange = callback;
   }
 
