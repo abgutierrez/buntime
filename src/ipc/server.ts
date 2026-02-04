@@ -132,6 +132,14 @@ export class IPCServer {
         ...(options.env ?? {}),
     };
 
+    // Filter WORKER_ environment variables
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.startsWith("WORKER_") && value !== undefined) {
+        const newKey = key.slice(7);
+        env[newKey] = value;
+      }
+    }
+
     let proxyEnabled = false;
     const allowAllNetwork =
         config.network.policy === "allow_list" &&

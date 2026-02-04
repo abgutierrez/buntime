@@ -86,7 +86,7 @@ function summarize(results: ScenarioResult[]): string {
   lines.push(`- BENCH_WORKER=${benchWorker}`);
   lines.push(`- Direct: bun test <test-file>`);
   lines.push(
-    `- Buntime: TEST_FILE=<test-file> bun src/cli.ts run --allow-all --worker ${benchWorker} example/bench/run-bun-test.ts`,
+    `- Buntime: WORKER_TEST_FILE=<test-file> bun src/cli.ts run --allow-all --worker ${benchWorker} example/bench/run-bun-test.ts`,
   );
   lines.push("");
   lines.push("## Results (avg/min/max, ms)");
@@ -141,7 +141,7 @@ async function main() {
         "example/bench/run-bun-test.ts",
       ],
       benchRuns,
-      { TEST_FILE: file },
+      { WORKER_TEST_FILE: file },
     );
     results.push({ file, direct, buntime });
   }

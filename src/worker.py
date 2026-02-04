@@ -10,6 +10,7 @@ import subprocess
 import ipaddress
 import os
 from multiprocessing import shared_memory
+from multiprocessing.resource_tracker import unregister
 from typing import Any
 from contextlib import contextmanager
 
@@ -320,6 +321,8 @@ def main():
     for name in set(names_to_try):
         try:
             shm = shared_memory.SharedMemory(name=name)
+            # Bun supervisor owns shared memory lifecycle, not Python
+            unregister(shm._name, "shared_memory")  # type: ignore[attr-defined]
             break
         except FileNotFoundError:
             pass

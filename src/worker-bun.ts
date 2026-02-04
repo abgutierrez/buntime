@@ -49,6 +49,8 @@ if (worker2bun.capacity === 0) {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+const MSG_TYPE_CODE = 0x20;
+
 const socket = await Bun.connect({
   unix: socketPath,
   socket: {
@@ -101,7 +103,18 @@ while (true) {
     continue;
   }
 
-  const code = decoder.decode(msg);
+  if (msg.length < 5) {
+    console.error("[BunWorker] Received too short message:", msg.length);
+    continue;
+  }
+
+  const type = msg[0];
+  if (type !== MSG_TYPE_CODE) {
+    console.error("[BunWorker] Invalid message type, expected 0x20 (CODE), got:", type);
+    continue;
+  }
+
+  const code = decoder.decode(msg.subarray(5));
   sendState("code_received", { code_length: code.length });
 
   try {
