@@ -1,5 +1,10 @@
 # Architecture Specification: Pod/Runner
 
+> **⚠️ DEPRECATED**
+>
+> This document has been superseded by [ARCHITECTURE.md](../ARCHITECTURE.md).
+> Please use the updated documentation instead. This file is retained for historical reference only.
+
 ## 1. Overview
 The Pod/Runner is a security-first execution environment that implements a
 "Supervisor-Worker" model. Bun acts as the trusted Supervisor (Runner). Workers

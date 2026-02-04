@@ -1,3 +1,5 @@
+> **DEPRECATED**: This specification has been moved and enhanced. See [Integration Guide](../INTEGRATION.md) for the complete CLI usage documentation.
+
 # CLI Specification: Pod/Runner
 
 ## 1. Overview

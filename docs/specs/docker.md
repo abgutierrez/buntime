@@ -1,3 +1,5 @@
+> **DEPRECATED**: This specification has been moved and enhanced. See [Integration Guide](../INTEGRATION.md) for the complete Docker deployment documentation.
+
 # Docker Specification: Pod/Runner
 
 ## 1. Overview
