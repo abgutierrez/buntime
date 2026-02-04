@@ -64,6 +64,7 @@ export class Supervisor {
   private shmSize: number;
   private workerType: "python" | "bun";
   private sandboxEnabled: boolean;
+  private isRestarting: boolean = false;
 
   constructor(options: SupervisorOptions = {}) {
     this.policyPath =
@@ -130,6 +131,11 @@ export class Supervisor {
           this.emit({ type: "syscalls", data: this.buildHeatmapPayload() });
           this.emit({ type: "audit-reset" });
         }
+        if (signal === "KILLED" && data?.reason === "policy-violation") {
+          this.restartWorker().catch(err => {
+            this.emit({ type: "error", data: `Restart failed: ${err.message}` });
+          });
+        }
         this.emit({
           type: "state",
           data: { worker: state, signal, ...data },
@@ -152,6 +158,10 @@ export class Supervisor {
   }
 
   sendCode(code: string) {
+    if (this.isRestarting) {
+      this.emit({ type: "error", data: "Worker is restarting, please wait" });
+      return false;
+    }
     if (!this.ipcServer) {
       this.emit({ type: "error", data: "IPC server not ready" });
       return false;
@@ -181,6 +191,64 @@ export class Supervisor {
       this.memoryTimer = null;
     }
     this.ipcServer?.stop();
+  }
+
+  async restartWorker(): Promise<void> {
+    if (!this.config) {
+      throw new Error("Cannot restart: config not loaded");
+    }
+    
+    this.isRestarting = true;
+    this.emit({ type: "state", data: { worker: "restarting" } });
+    
+    if (this.ipcServer) {
+      this.ipcServer.stop();
+      this.ipcServer = null;
+    }
+    
+    const shmName = "/bun_ipc_" + Math.random().toString(36).slice(2, 8);
+    this.ipcServer = new IPCServer(shmName, this.shmSize, 
+      (data) => {
+        const text = new TextDecoder().decode(data);
+        this.emit({ type: "output", data: text });
+      },
+      (type, payload) => this.handlePolicyCheck(type, payload)
+    );
+
+    const workerCommand = this.buildWorkerCommand();
+    
+    await new Promise<void>((resolve) => {
+      this.ipcServer!.setOnStateChange((state, signal, data) => {
+        if (signal === "WORKER_EVENT" && state === "exec_start") {
+          this.syscallCounts.clear();
+          this.auditEventQueue.length = 0;
+          this.lastSyscallBroadcast = 0;
+          this.emit({ type: "syscalls", data: this.buildHeatmapPayload() });
+          this.emit({ type: "audit-reset" });
+        }
+        if (signal === "KILLED" && data?.reason === "policy-violation") {
+          this.restartWorker().catch(err => {
+            this.emit({ type: "error", data: `Restart failed: ${err.message}` });
+          });
+          return;
+        }
+        this.emit({
+          type: "state",
+          data: { worker: state, signal, ...data },
+        });
+        if (signal === "READY") {
+          resolve();
+        }
+      });
+      
+      this.ipcServer!.start(workerCommand, this.config!, {
+        env: { POLICY_PATH: this.activePolicyPath, PYTHONUNBUFFERED: "1" },
+        sandboxEnabled: this.sandboxEnabled,
+      });
+    });
+    
+    this.isRestarting = false;
+    this.emit({ type: "state", data: { worker: "ready", signal: "RESTARTED" } });
   }
 
   async applyPolicySet(

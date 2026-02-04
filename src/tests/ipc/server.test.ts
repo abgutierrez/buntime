@@ -40,6 +40,7 @@ mock.module("../../ipc/ffi", () => ({
     shmOpen: () => 1,
     shmUnlink: () => 0,
     mmap: () => 1024,
+    munmap: () => 0,
     close: () => 0,
 }));
 

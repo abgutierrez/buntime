@@ -1,4 +1,4 @@
-import { shmOpen, mmap, close } from "./ipc/ffi";
+import { shmOpen, mmap, munmap, close } from "./ipc/ffi";
 import { SharedRingBuffer } from "./ipc/ringbuffer";
 
 const argv = Bun.argv;
@@ -142,4 +142,5 @@ while (true) {
 
 console.log = originalLog;
 console.error = originalError;
+munmap(shmPtr, shmSize);
 close(shmFd);

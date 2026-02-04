@@ -1,4 +1,4 @@
-import { shmOpen, shmUnlink, mmap, close } from "./ffi";
+import { shmOpen, shmUnlink, mmap, munmap, close } from "./ffi";
 import { SharedRingBuffer } from "./ringbuffer";
 import { unlink } from "node:fs";
 import { NetworkProxy } from "../proxy";
@@ -7,6 +7,8 @@ import { join } from "path";
 import { MsgType, ResponseType } from "./protocol";
 
 export type CheckCallback = (type: MsgType, payload: Uint8Array) => { allowed: boolean };
+
+export type WorkerState = "idle" | "running" | "stopped" | "killed";
 
 export class IPCServer {
   private shmFd: number;
@@ -26,6 +28,9 @@ export class IPCServer {
   private onCheck?: CheckCallback;
   private onStateChange?: (state: string, signal?: string, data?: any) => void;
   private sendState?: (state: string, signal?: string, data?: any) => void;
+  
+  private state: WorkerState = "idle";
+  private killReason: string | null = null;
   
   constructor(
     shmName: string, 
@@ -76,6 +81,7 @@ export class IPCServer {
     config: SandboxConfig,
     options: { env?: Record<string, string>; sandboxEnabled?: boolean } = {},
   ) {
+    this.state = "running";
     console.log("[Bun] Starting IPC Server...");
 
     try { unlink(this.socketPath, () => {}); } catch {}
@@ -258,7 +264,7 @@ export class IPCServer {
                 if (!result.allowed) {
                     if (type === MsgType.FS_READ || type === MsgType.LISTDIR) {
                          console.error(`[Bun] Optimistic Violation (Type ${type})! Killing worker.`);
-                         this.stop();
+                         this.kill("policy-violation");
                          return;
                     }
                     this.sendResponse(reqId, ResponseType.DENY);
@@ -340,7 +346,28 @@ export class IPCServer {
     };
   }
 
+  getState(): WorkerState {
+    return this.state;
+  }
+
+  getKillReason(): string | null {
+    return this.killReason;
+  }
+
+  kill(reason: string) {
+    this.state = "killed";
+    this.killReason = reason;
+    if (this.onStateChange) {
+      this.onStateChange("killed", "KILLED", { reason });
+    }
+    this.stop();
+  }
+
   stop() {
+    // Only set to stopped if not already killed (kill() sets state before calling stop())
+    if (this.state !== "killed") {
+      this.state = "stopped";
+    }
     if (this.processHandle) this.processHandle.kill();
     if (this.sandboxPid) {
         try {
@@ -352,6 +379,7 @@ export class IPCServer {
         this.proxy = null;
     }
     if (this.server) this.server.stop();
+    munmap(this.shmPtr, this.shmSize);
     close(this.shmFd);
     shmUnlink(this.shmName);
     try { unlink(this.socketPath, () => {}); } catch {}
