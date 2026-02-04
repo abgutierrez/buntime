@@ -9,6 +9,7 @@
         "ajv": "^8.17.1",
         "bun-types": "^1.3.6",
         "node-cidr": "^1.0.0",
+        "playwright-core": "^1.58.1",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -34,6 +35,8 @@
     "json-schema-traverse": ["json-schema-traverse@1.0.0", "", {}, "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug=="],
 
     "node-cidr": ["node-cidr@1.0.0", "", {}, "sha512-F7KXTvJ1fyVVldfjO/MrZS7ux9nyE6GiMS2q3yNFZWrU6IHjHEOuQ7jQEArJf7/qvZO3k8RGu38GSxInz8TE1g=="],
+
+    "playwright-core": ["playwright-core@1.58.1", "", { "bin": { "playwright-core": "cli.js" } }, "sha512-bcWzOaTxcW+VOOGBCQgnaKToLJ65d6AqfLVKEWvexyS3AS6rbXl+xdpYRMGSRBClPvyj44njOWoxjNdL/H9UNg=="],
 
     "require-from-string": ["require-from-string@2.0.2", "", {}, "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=="],
 

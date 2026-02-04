@@ -1,24 +1,24 @@
 {
   "policyKeys": [
-    "cli-flags"
+    "NetEgressPolicy"
   ],
   "policyCount": 1,
   "defaults": {
-    "fs": "allow",
+    "fs": "deny",
     "net": "allow",
-    "exec": "allow"
+    "exec": "deny"
   },
   "rules": {
     "fs": 0,
-    "net": 0,
+    "net": 10,
     "exec": 0,
     "antiEscape": 0,
-    "total": 0
+    "total": 10
   },
   "audit": {
     "enabled": false,
     "events": []
   },
-  "source": "boot",
-  "appliedAt": "2026-01-24T15:04:42.358Z"
+  "source": "run",
+  "appliedAt": "2026-02-04T17:47:52.116Z"
 }

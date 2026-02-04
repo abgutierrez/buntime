@@ -4,6 +4,8 @@ import {
   type NormalizedPolicy,
   type Policy,
 } from "../sandbox/policy/loader";
+import { PolicyEnforcer } from "../sandbox/policy/enforcer";
+import { MsgType } from "../ipc/protocol";
 import {
   buildOpenPolicy,
   buildPolicySetMeta,
@@ -38,7 +40,9 @@ type SyscallBucket = (typeof SYSCALL_BUCKETS)[number];
 
 export class Supervisor {
   private sockets = new Set<any>();
+  private decoder = new TextDecoder();
   private activePolicy: NormalizedPolicy | null = null;
+  private enforcer: PolicyEnforcer | null = null;
   private activePolicySetMeta: PolicySetMeta | null = null;
   private ipcServer: IPCServer | null = null;
   private policyPath: string;
@@ -110,12 +114,15 @@ export class Supervisor {
 
     try {
       const shmName = "/bun_ipc_" + Math.random().toString(36).slice(2, 8);
-      this.ipcServer = new IPCServer(shmName, this.shmSize, (data) => {
-        const text = new TextDecoder().decode(data);
-        this.emit({ type: "output", data: text });
-      });
+      this.ipcServer = new IPCServer(shmName, this.shmSize, 
+        (data) => {
+          const text = new TextDecoder().decode(data);
+          this.emit({ type: "output", data: text });
+        },
+        (type, payload) => this.handlePolicyCheck(type, payload)
+      );
 
-      this.ipcServer.setOnStateChange((state, signal) => {
+      this.ipcServer.setOnStateChange((state, signal, data) => {
         if (signal === "WORKER_EVENT" && state === "exec_start") {
           this.syscallCounts.clear();
           this.auditEventQueue.length = 0;
@@ -125,7 +132,7 @@ export class Supervisor {
         }
         this.emit({
           type: "state",
-          data: { python: state, signal },
+          data: { worker: state, signal, ...data },
         });
       });
 
@@ -150,7 +157,7 @@ export class Supervisor {
       return false;
     }
     const bytes = new TextEncoder().encode(code || "");
-    const ok = this.ipcServer.send(bytes);
+    const ok = this.ipcServer.sendOp(MsgType.CODE, bytes);
     if (ok) {
       this.emit({ type: "state", data: { bun: "Sending..." } });
       setTimeout(() => {
@@ -216,6 +223,54 @@ export class Supervisor {
     return meta;
   }
 
+  private handlePolicyCheck(type: MsgType, payload: Uint8Array): { allowed: boolean } {
+    if (!this.enforcer) return { allowed: true };
+
+    if (type === MsgType.FS_READ || type === MsgType.FS_WRITE || type === MsgType.LISTDIR) {
+        const path = this.decoder.decode(payload);
+        const perm = type === MsgType.FS_WRITE ? "write_file" : 
+                     type === MsgType.LISTDIR ? "read_dir" : "read_file";
+        const action = this.enforcer.checkFs(path, perm);
+        if (action === "warn") {
+            console.log(`[Audit] warn fs ${path}`);
+            return { allowed: true };
+        }
+        return { allowed: action === "allow" };
+    }
+
+    if (type === MsgType.EXEC) {
+        const path = this.decoder.decode(payload);
+        const action = this.enforcer.checkExec(path);
+        if (action === "warn") {
+            console.log(`[Audit] warn exec ${path}`);
+            return { allowed: true };
+        }
+        return { allowed: action === "allow" };
+    }
+
+    if (type === MsgType.NET_CONNECT) {
+        try {
+            const str = this.decoder.decode(payload);
+            const parts = str.split(":");
+            if (parts.length !== 2) return { allowed: false };
+            const host = parts[0];
+            const portStr = parts[1];
+            if (!host || !portStr) return { allowed: false };
+            const port = parseInt(portStr, 10);
+            const action = this.enforcer.checkNet(host, port, "tcp");
+            if (action === "warn") {
+                console.log(`[Audit] warn net tcp ${host}:${port}`);
+                return { allowed: true };
+            }
+            return { allowed: action === "allow" };
+        } catch {
+            return { allowed: false };
+        }
+    }
+
+    return { allowed: false };
+  }
+
   private emit(event: SupervisorEvent) {
     for (const listener of this.listeners) {
       listener(event);
@@ -248,6 +303,9 @@ export class Supervisor {
   private async loadPolicy(path: string, meta?: PolicySetMeta | null) {
     const loader = new PolicyLoader();
     this.activePolicy = await loader.load(path);
+    if (this.activePolicy) {
+        this.enforcer = new PolicyEnforcer(this.activePolicy);
+    }
     if (this.activePolicy?.audit?.enabled) {
       this.emit({
         type: "audit-enabled",

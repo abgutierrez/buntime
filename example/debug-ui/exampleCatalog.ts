@@ -5,6 +5,7 @@ export const exampleCatalog = [
     description: "Baseline output and environment info.",
     group: "Basics",
     file: "hello_world.py",
+    recommendedPolicies: [],
   },
   {
     id: "fs_allow_tmp",
@@ -12,6 +13,7 @@ export const exampleCatalog = [
     description: "Allowed filesystem access under FS allowlist.",
     group: "Filesystem",
     file: "fs_allow_tmp.py",
+    recommendedPolicies: ["FSAllowlistPolicy"],
   },
   {
     id: "fs_allow_etc",
@@ -19,6 +21,7 @@ export const exampleCatalog = [
     description: "Read /etc directory entries.",
     group: "Filesystem",
     file: "fs_allow_work.py",
+    recommendedPolicies: ["FSAllowlistPolicy"],
   },
   {
     id: "fs_deny_etc",
@@ -26,6 +29,7 @@ export const exampleCatalog = [
     description: "Denied filesystem access outside allowlist.",
     group: "Filesystem",
     file: "fs_deny_etc.py",
+    recommendedPolicies: ["FSAllowlistPolicy"],
   },
   {
     id: "fs_deny_etc_hostname",
@@ -33,6 +37,7 @@ export const exampleCatalog = [
     description: "Blocked read outside allowlist.",
     group: "Filesystem",
     file: "fs_deny_var_log.py",
+    recommendedPolicies: ["FSAllowlistPolicy"],
   },
   {
     id: "net_rfc1918_block",
@@ -40,6 +45,7 @@ export const exampleCatalog = [
     description: "Blocked outbound access to private ranges.",
     group: "Network",
     file: "net_rfc1918_block.py",
+    recommendedPolicies: ["NetEgressPolicy"],
   },
   {
     id: "net_allow_external",
@@ -47,6 +53,7 @@ export const exampleCatalog = [
     description: "Outbound HTTPS to public endpoint.",
     group: "Network",
     file: "net_allow_external.py",
+    recommendedPolicies: ["NetEgressPolicy"],
   },
   {
     id: "net_warn_db_ports",
@@ -54,6 +61,7 @@ export const exampleCatalog = [
     description: "Connection attempt to DB ports.",
     group: "Network",
     file: "net_warn_db_ports.py",
+    recommendedPolicies: ["NetEgressPolicy"],
   },
   {
     id: "net_warn_ssh",
@@ -61,6 +69,7 @@ export const exampleCatalog = [
     description: "Connection attempt to SSH port.",
     group: "Network",
     file: "net_warn_ssh.py",
+    recommendedPolicies: ["NetEgressPolicy"],
   },
   {
     id: "net_warn_mysql",
@@ -68,6 +77,7 @@ export const exampleCatalog = [
     description: "Connection attempt to MySQL port.",
     group: "Network",
     file: "net_warn_mysql.py",
+    recommendedPolicies: ["NetEgressPolicy"],
   },
   {
     id: "exec_allow_python",
@@ -75,6 +85,7 @@ export const exampleCatalog = [
     description: "Allowed exec for Python interpreter.",
     group: "Execution",
     file: "exec_allow_python.py",
+    recommendedPolicies: ["ExecPolicy"],
   },
   {
     id: "exec_deny_shell",
@@ -82,6 +93,7 @@ export const exampleCatalog = [
     description: "Denied exec for /bin/sh.",
     group: "Execution",
     file: "exec_deny_shell.py",
+    recommendedPolicies: ["ExecPolicy"],
   },
   {
     id: "exec_deny_cat",
@@ -89,6 +101,7 @@ export const exampleCatalog = [
     description: "Denied exec for /bin/cat.",
     group: "Execution",
     file: "exec_deny_cat.py",
+    recommendedPolicies: ["ExecPolicy"],
   },
   {
     id: "exec_deny_ls",
@@ -96,6 +109,7 @@ export const exampleCatalog = [
     description: "Denied exec for /bin/ls.",
     group: "Execution",
     file: "exec_deny_ls.py",
+    recommendedPolicies: ["ExecPolicy"],
   },
   {
     id: "exec_deny_curl",
@@ -103,6 +117,7 @@ export const exampleCatalog = [
     description: "Denied exec for curl.",
     group: "Execution",
     file: "exec_deny_curl.py",
+    recommendedPolicies: ["ExecPolicy"],
   },
   {
     id: "exec_deny_bun",
@@ -110,6 +125,7 @@ export const exampleCatalog = [
     description: "Denied exec for bun.",
     group: "Execution",
     file: "exec_deny_bun.py",
+    recommendedPolicies: ["ExecPolicy"],
   },
   {
     id: "exec_deny_bash",
@@ -117,5 +133,6 @@ export const exampleCatalog = [
     description: "Denied exec for /bin/bash.",
     group: "Execution",
     file: "exec_deny_bash.py",
+    recommendedPolicies: ["ExecPolicy"],
   },
 ];

@@ -927,8 +927,9 @@ except Exception as e:
                 "version": 1,
                 "name": "FSAllowlistPolicy",
                 "description": "Política de lista blanca para el sistema de archivos (Landlock). Bloquea todo por defecto (fs=deny) y solo permite rutas específicas.",
+                "domains": ["fs"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "deny", "net": "allow", "exec": "allow" },
+                "defaults": { "fs": "deny" },
                 "fs": {
                     "rules": [
                         { "action": "allow", "path": "/usr/lib", "perms": ["read_file", "read_dir"] },
@@ -940,8 +941,9 @@ except Exception as e:
                 "version": 1,
                 "name": "NetEgressPolicy",
                 "description": "Política de salida de red. Bloquea IMDS y redes privadas (RFC1918). Alerta en puertos sensibles (SSH, SMTP, DB).",
+                "domains": ["net"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "defaults": { "net": "allow" },
                 "net": {
                     "rules": [
                         { "action": "deny", "proto": "tcp", "cidr": "169.254.169.254/32", "ports": "80,443" },
@@ -961,8 +963,9 @@ except Exception as e:
                 "version": 1,
                 "name": "ExecPolicy",
                 "description": "Política de ejecución estricta. Solo permite ejecutar el intérprete de Python especificado.",
+                "domains": ["exec"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "deny" },
+                "defaults": { "exec": "deny" },
                 "exec": {
                     "rules": [
                         { "action": "allow", "path": "/usr/bin/python3.12" }
@@ -973,8 +976,9 @@ except Exception as e:
                 "version": 1,
                 "name": "AntiEscapePolicy",
                 "description": "Política anti-escape. Bloquea llamadas al sistema peligrosas (ptrace, bpf, mount, unshare, etc) para prevenir fugas.",
+                "domains": ["antiEscape"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "defaults": {},
                 "antiEscape": {
                     "denySyscalls": [
                         "ptrace", "mount", "umount2", "bpf", "kexec_load", "unshare", 
@@ -987,11 +991,39 @@ except Exception as e:
                 "version": 1,
                 "name": "EBPFAuditPolicy",
                 "description": "Política de auditoria eBPF. Registra eventos criticos (connect/openat/execve) sin bloquearlos.",
+                "domains": ["audit"],
                 "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
-                "defaults": { "fs": "allow", "net": "allow", "exec": "allow" },
+                "defaults": {},
                 "audit": {
                     "enabled": true,
                     "events": ["connect", "openat", "execve"]
+                }
+            },
+            "LambdaBackendPolicy": {
+                "version": 1,
+                "name": "LambdaBackendPolicy",
+                "description": "Production-ready lambda-like environment.",
+                "domains": ["fs", "net", "exec"],
+                "plugins": { "namespaces": true, "landlock": true, "seccomp": true },
+                "defaults": { "fs": "deny", "net": "allow", "exec": "deny" },
+                "fs": {
+                    "rules": [
+                        { "action": "allow", "path": "/tmp", "perms": ["read_file", "write_file", "read_dir", "write_dir"] },
+                        { "action": "allow", "path": "/var/task", "perms": ["read_file", "read_dir"] }
+                    ]
+                },
+                "net": {
+                    "rules": [
+                        { "action": "deny", "proto": "tcp", "cidr": "10.0.0.0/8", "ports": "0-65535" },
+                        { "action": "deny", "proto": "tcp", "cidr": "172.16.0.0/12", "ports": "0-65535" },
+                        { "action": "deny", "proto": "tcp", "cidr": "192.168.0.0/16", "ports": "0-65535" },
+                        { "action": "allow", "proto": "tcp", "cidr": "0.0.0.0/0", "ports": "0-65535" }
+                    ]
+                },
+                "exec": {
+                    "rules": [
+                        { "action": "allow", "path": "/usr/bin/python3" }
+                    ]
                 }
             }
         };
@@ -1013,7 +1045,8 @@ except Exception as e:
             "NetEgressPolicy": "#3b82f6", 
             "ExecPolicy": "#ef4444", 
             "AntiEscapePolicy": "#a855f7", 
-            "EBPFAuditPolicy": "#f97316"
+            "EBPFAuditPolicy": "#f97316",
+            "LambdaBackendPolicy": "#06b6d4"
         };
 
         function initPolicyList() {
@@ -1110,6 +1143,13 @@ except Exception as e:
             const sel = document.getElementById('template-select');
             const val = sel?.value;
             if (!val) return;
+
+            // Auto-apply recommended policies
+            const entry = TEMPLATE_INDEX.find(e => e.id === val);
+            if (entry) {
+                applyRecommendedPolicies(entry.recommendedPolicies);
+            }
+
             try {
                 const res = await fetch(`/examples/${val}`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1205,134 +1245,91 @@ except Exception as e:
 
         function getPolicyBodyHTML(key, p) {
             let html = '';
+            const domains = p.domains || [];
 
-            if (p.version) {
-                // KERNEL SCHEMA
-                html += `<div class="policy-section-title">Kernel Plugins</div>`;
-                html += Object.keys(p.plugins).map(k => `
-                    <div class="policy-row">
-                        <span>${k}</span>
-                        ${createToggle(p.plugins[k], `data-section="plugins" data-key="${k}"`)}
-                    </div>
-                `).join('');
+            // KERNEL SCHEMA
+            html += `<div class="policy-section-title">Kernel Plugins</div>`;
+            html += Object.keys(p.plugins).map(k => `
+                <div class="policy-row">
+                    <span>${k}</span>
+                    ${createToggle(p.plugins[k], `data-section="plugins" data-key="${k}"`)}
+                </div>
+            `).join('');
 
+            // Default Actions - only for relevant domains
+            const relevantDefaults = ['fs', 'net', 'exec'].filter(d => domains.includes(d));
+            if (relevantDefaults.length > 0) {
                 html += `<div class="policy-section-title">Default Actions</div>`;
-                ['fs', 'net', 'exec'].forEach(type => {
+                relevantDefaults.forEach(type => {
                      html += `
                     <div class="policy-row">
                         <span>${type.toUpperCase()}</span>
                         ${createSelect(['allow', 'deny'], p.defaults[type], `data-section="defaults" data-key="${type}"`)}
                     </div>`;
                 });
+            }
 
-                if (p.fs && p.fs.rules) {
-                    html += `<div class="policy-section-title">Filesystem Rules</div>`;
-                    p.fs.rules.forEach((r, index) => {
-                        html += `<div class="policy-rule" data-rule-section="fs" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
-                                ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
-                                <span style="font-size:0.65rem; color:var(--text-dim)">FS</span>
-                            </div>
-                            <input class="policy-input" data-field="path" value="${r.path}" style="margin-bottom:4px" placeholder="/path">
-                            <input class="policy-input" data-field="perms" value="${r.perms.join(', ')}" placeholder="read_file, write_file">
-                        </div>`;
-                    });
-                }
+            if (domains.includes('fs') && p.fs && p.fs.rules) {
+                html += `<div class="policy-section-title">Filesystem Rules</div>`;
+                p.fs.rules.forEach((r, index) => {
+                    html += `<div class="policy-rule" data-rule-section="fs" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                            ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
+                            <span style="font-size:0.65rem; color:var(--text-dim)">FS</span>
+                        </div>
+                        <input class="policy-input" data-field="path" value="${r.path}" style="margin-bottom:4px" placeholder="/path">
+                        <input class="policy-input" data-field="perms" value="${r.perms.join(', ')}" placeholder="read_file, write_file">
+                    </div>`;
+                });
+            }
 
-                if (p.net && p.net.rules) {
-                    html += `<div class="policy-section-title">Network Rules <span class="tooltip" data-tooltip="RFC1918: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16" style="cursor:help;opacity:0.7">ℹ</span></div>`;
-                    p.net.rules.forEach((r, index) => {
-                        html += `<div class="policy-rule" data-rule-section="net" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
-                                ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
-                                <span style="font-size:0.65rem; color:var(--text-dim)">NET</span>
-                            </div>
-                            <div style="display:grid; grid-template-columns: 1fr 2fr 1fr; gap:4px; margin-bottom:4px;">
-                                <input class="policy-input" data-field="proto" value="${r.proto || ''}" placeholder="tcp/udp">
-                                <input class="policy-input" data-field="cidr" value="${r.cidr || ''}" placeholder="0.0.0.0/0">
-                                <input class="policy-input" data-field="ports" value="${r.ports || ''}" placeholder="443">
-                            </div>
-                        </div>`;
-                    });
-                }
+            if (domains.includes('net') && p.net && p.net.rules) {
+                html += `<div class="policy-section-title">Network Rules <span class="tooltip" data-tooltip="RFC1918: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16" style="cursor:help;opacity:0.7">ℹ</span></div>`;
+                p.net.rules.forEach((r, index) => {
+                    html += `<div class="policy-rule" data-rule-section="net" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                            ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
+                            <span style="font-size:0.65rem; color:var(--text-dim)">NET</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr 2fr 1fr; gap:4px; margin-bottom:4px;">
+                            <input class="policy-input" data-field="proto" value="${r.proto || ''}" placeholder="tcp/udp">
+                            <input class="policy-input" data-field="cidr" value="${r.cidr || ''}" placeholder="0.0.0.0/0">
+                            <input class="policy-input" data-field="ports" value="${r.ports || ''}" placeholder="443">
+                        </div>
+                    </div>`;
+                });
+            }
 
-                if (p.exec && p.exec.rules) {
-                    html += `<div class="policy-section-title">Execution Rules</div>`;
-                    p.exec.rules.forEach((r, index) => {
-                        html += `<div class="policy-rule" data-rule-section="exec" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
-                             <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
-                                ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
-                                <span style="font-size:0.65rem; color:var(--text-dim)">EXEC</span>
-                            </div>
-                            <input class="policy-input" data-field="path" value="${r.path || ''}" placeholder="binary path" style="margin-bottom:4px">
-                            <input class="policy-input" data-field="sha256" value="${r.sha256 || ''}" placeholder="sha256 hash (optional)">
-                        </div>`;
-                    });
-                }
-                
-                if (p.antiEscape && p.antiEscape.denySyscalls) {
-                      html += `<div class="policy-section-title">Anti-Escape (Syscalls)</div>`;
-                      html += `<textarea class="policy-input" data-section="antiEscape" data-key="denySyscalls" style="height:60px; resize:none;">${p.antiEscape.denySyscalls.join(', ')}</textarea>`;
-                }
+            if (domains.includes('exec') && p.exec && p.exec.rules) {
+                html += `<div class="policy-section-title">Execution Rules</div>`;
+                p.exec.rules.forEach((r, index) => {
+                    html += `<div class="policy-rule" data-rule-section="exec" data-rule-index="${index}" style="margin-bottom:8px; padding:6px; background:var(--bg-input); border-radius:4px; border-left:2px solid ${r.action==='allow'?'var(--success)':'var(--danger)'}">
+                         <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                            ${createSelect(['allow', 'deny', 'warn'], r.action, `data-field="action"`)}
+                            <span style="font-size:0.65rem; color:var(--text-dim)">EXEC</span>
+                        </div>
+                        <input class="policy-input" data-field="path" value="${r.path || ''}" placeholder="binary path" style="margin-bottom:4px">
+                        <input class="policy-input" data-field="sha256" value="${r.sha256 || ''}" placeholder="sha256 hash (optional)">
+                    </div>`;
+                });
+            }
+            
+            if (domains.includes('antiEscape') && p.antiEscape && p.antiEscape.denySyscalls) {
+                  html += `<div class="policy-section-title">Anti-Escape (Syscalls)</div>`;
+                  html += `<textarea class="policy-input" data-section="antiEscape" data-key="denySyscalls" style="height:60px; resize:none;">${p.antiEscape.denySyscalls.join(', ')}</textarea>`;
+            }
 
-                if (p.audit) {
-                    html += `<div class="policy-section-title">Audit Log</div>`;
-                    html += `<div class="policy-row"><span>Enabled</span> ${createToggle(p.audit.enabled, `data-section="audit" data-key="enabled"`)}</div>`;
-                    html += `<div class="policy-section-title" style="margin-top:8px">Audit Events</div>`;
-                    html += `<textarea class="policy-input" data-section="audit" data-key="events" style="height:60px; resize:none;" placeholder="connect, openat...">${(p.audit.events||[]).join(', ')}</textarea>`;
-                }
-
-            } else {
-                // LEGACY SCHEMA
-                // Filesystem
-                if (p.filesystem) {
-                    html += `<div class="policy-section-title">Filesystem</div>`;
-                    html += `<div class="policy-row"><span>Allow Read</span> ${createToggle(p.filesystem.allowRead, `data-section="filesystem" data-key="allowRead"`)}</div>`;
-                    html += `<div class="policy-row"><span>Allow Write</span> ${createToggle(p.filesystem.allowWrite, `data-section="filesystem" data-key="allowWrite"`)}</div>`;
-                    
-                    html += `<div class="policy-section-title">Allow Paths</div>`;
-                    html += `<textarea class="policy-input" data-section="filesystem" data-key="allowPaths" style="height:40px">${(p.filesystem.allowPaths||[]).join('\n')}</textarea>`;
-                    
-                    html += `<div class="policy-section-title">Deny Paths</div>`;
-                    html += `<textarea class="policy-input" data-section="filesystem" data-key="denyPaths" style="height:40px">${(p.filesystem.denyPaths||[]).join('\n')}</textarea>`;
-                }
-                
-                // Network
-                if (p.network) {
-                    html += `<div class="policy-section-title">Network</div>`;
-                    html += `<div class="policy-row"><span>Deny External</span> ${createToggle(p.network.denyExternal, `data-section="network" data-key="denyExternal"`)}</div>`;
-                    html += `<div class="policy-row"><span>Allow Localhost</span> ${createToggle(p.network.allowLocalhost, `data-section="network" data-key="allowLocalhost"`)}</div>`;
-                    
-                    html += `<div class="policy-section-title">Allowed Domains</div>`;
-                    html += `<textarea class="policy-input" data-section="network" data-key="allowDomains" style="height:40px">${(p.network.allowDomains||[]).join(', ')}</textarea>`;
-                }
-
-                // Commands
-                if (p.commands) {
-                    html += `<div class="policy-section-title">Commands</div>`;
-                    html += `<div class="policy-row"><span>Allow Shell</span> ${createToggle(p.commands.allowShell, `data-section="commands" data-key="allowShell"`)}</div>`;
-                    html += `<div class="policy-row"><span>Allow Exec</span> ${createToggle(p.commands.allowExec, `data-section="commands" data-key="allowExec"`)}</div>`;
-                    html += `<div class="policy-row"><span>Allow Subprocess</span> ${createToggle(p.commands.allowSubprocess, `data-section="commands" data-key="allowSubprocess"`)}</div>`;
-                    
-                    html += `<div class="policy-section-title">Forbidden Commands</div>`;
-                    html += `<textarea class="policy-input" data-section="commands" data-key="forbiddenCommands" style="height:40px">${(p.commands.forbiddenCommands||[]).join(', ')}</textarea>`;
-                    
-                    html += `<div class="policy-section-title">Forbidden Modules</div>`;
-                    html += `<textarea class="policy-input" data-section="commands" data-key="forbiddenModules" style="height:40px">${(p.commands.forbiddenModules||[]).join(', ')}</textarea>`;
-                }
-
-                // Execution
-                if (p.execution) {
-                    html += `<div class="policy-section-title">Execution Limits</div>`;
-                    html += `<div class="policy-row"><span>Max Duration (ms)</span> <input class="policy-input" data-section="execution" data-key="maxDurationMs" style="width:80px" value="${p.execution.maxDurationMs||0}"></div>`;
-                    html += `<div class="policy-row"><span>Max Output (bytes)</span> <input class="policy-input" data-section="execution" data-key="maxOutputBytes" style="width:80px" value="${p.execution.maxOutputBytes||0}"></div>`;
-                    html += `<div class="policy-row"><span>Max Memory (MB)</span> <input class="policy-input" data-section="execution" data-key="maxMemoryMB" style="width:80px" value="${p.execution.maxMemoryMB||0}"></div>`;
-                    html += `<div class="policy-row"><span>Allow Inf. Loop</span> ${createToggle(p.execution.allowInfiniteLoop, `data-section="execution" data-key="allowInfiniteLoop"`)}</div>`;
-                }
+            if (domains.includes('audit') && p.audit) {
+                html += `<div class="policy-section-title">Audit Log</div>`;
+                html += `<div class="policy-row"><span>Enabled</span> ${createToggle(p.audit.enabled, `data-section="audit" data-key="enabled"`)}</div>`;
+                html += `<div class="policy-section-title" style="margin-top:8px">Audit Events</div>`;
+                html += `<textarea class="policy-input" data-section="audit" data-key="events" style="height:60px; resize:none;" placeholder="connect, openat...">${(p.audit.events||[]).join(', ')}</textarea>`;
             }
             
             return html;
         }
+
+
 
         function parseList(value) {
             if (!value) return [];
@@ -1374,9 +1371,7 @@ except Exception as e:
         }
 
         function collectKernelPolicy(ctx, base, key) {
-            const denySyscalls = parseList(readText(ctx, 'antiEscape', 'denySyscalls'));
-            const auditEnabled = readToggle(ctx, 'audit', 'enabled');
-            const auditEvents = parseList(readText(ctx, 'audit', 'events'));
+            const domains = base.domains || [];
             
             const policy = {
                 version: 1,
@@ -1385,55 +1380,37 @@ except Exception as e:
                     landlock: readToggle(ctx, 'plugins', 'landlock'),
                     seccomp: readToggle(ctx, 'plugins', 'seccomp'),
                 },
-                defaults: {
-                    fs: readText(ctx, 'defaults', 'fs') || 'deny',
-                    net: readText(ctx, 'defaults', 'net') || 'deny',
-                    exec: readText(ctx, 'defaults', 'exec') || 'deny',
-                },
+                defaults: {},
             };
 
-            const fsRules = collectRules(ctx, 'fs');
-            const netRules = collectRules(ctx, 'net');
-            const execRules = collectRules(ctx, 'exec');
+            if (domains.includes('fs')) {
+                policy.defaults.fs = readText(ctx, 'defaults', 'fs') || 'deny';
+                const fsRules = collectRules(ctx, 'fs');
+                if (fsRules.length) policy.fs = { rules: fsRules };
+            }
 
-            if (fsRules.length) policy.fs = { rules: fsRules };
-            if (netRules.length) policy.net = { rules: netRules };
-            if (execRules.length) policy.exec = { rules: execRules };
-            if (denySyscalls.length) policy.antiEscape = { denySyscalls };
-            if (auditEnabled || auditEvents.length) policy.audit = { enabled: auditEnabled, events: auditEvents };
+            if (domains.includes('net')) {
+                policy.defaults.net = readText(ctx, 'defaults', 'net') || 'deny';
+                const netRules = collectRules(ctx, 'net');
+                if (netRules.length) policy.net = { rules: netRules };
+            }
 
-            return { key, policy };
-        }
+            if (domains.includes('exec')) {
+                policy.defaults.exec = readText(ctx, 'defaults', 'exec') || 'deny';
+                const execRules = collectRules(ctx, 'exec');
+                if (execRules.length) policy.exec = { rules: execRules };
+            }
 
-        function collectLegacyPolicy(ctx, base, key) {
-            const policy = {
-                name: base.name || key,
-                description: base.description || '',
-                filesystem: {
-                    allowRead: readToggle(ctx, 'filesystem', 'allowRead'),
-                    allowWrite: readToggle(ctx, 'filesystem', 'allowWrite'),
-                    allowPaths: parseList(readText(ctx, 'filesystem', 'allowPaths')),
-                    denyPaths: parseList(readText(ctx, 'filesystem', 'denyPaths')),
-                },
-                network: {
-                    denyExternal: readToggle(ctx, 'network', 'denyExternal'),
-                    allowLocalhost: readToggle(ctx, 'network', 'allowLocalhost'),
-                    allowDomains: parseList(readText(ctx, 'network', 'allowDomains')),
-                },
-                commands: {
-                    allowShell: readToggle(ctx, 'commands', 'allowShell'),
-                    allowExec: readToggle(ctx, 'commands', 'allowExec'),
-                    allowSubprocess: readToggle(ctx, 'commands', 'allowSubprocess'),
-                    forbiddenCommands: parseList(readText(ctx, 'commands', 'forbiddenCommands')),
-                    forbiddenModules: parseList(readText(ctx, 'commands', 'forbiddenModules')),
-                },
-                execution: {
-                    maxDurationMs: Number(readText(ctx, 'execution', 'maxDurationMs') || 0),
-                    maxOutputBytes: Number(readText(ctx, 'execution', 'maxOutputBytes') || 0),
-                    maxMemoryMB: Number(readText(ctx, 'execution', 'maxMemoryMB') || 0),
-                    allowInfiniteLoop: readToggle(ctx, 'execution', 'allowInfiniteLoop'),
-                },
-            };
+            if (domains.includes('antiEscape')) {
+                const denySyscalls = parseList(readText(ctx, 'antiEscape', 'denySyscalls'));
+                if (denySyscalls.length) policy.antiEscape = { denySyscalls };
+            }
+
+            if (domains.includes('audit')) {
+                const auditEnabled = readToggle(ctx, 'audit', 'enabled');
+                const auditEvents = parseList(readText(ctx, 'audit', 'events'));
+                if (auditEnabled || auditEvents.length) policy.audit = { enabled: auditEnabled, events: auditEvents };
+            }
 
             return { key, policy };
         }
@@ -1443,10 +1420,7 @@ except Exception as e:
             return activeCards.map((card) => {
                 const key = card.dataset.policy;
                 const base = POLICIES[key] || {};
-                if (base.version) {
-                    return collectKernelPolicy(card, base, key);
-                }
-                return collectLegacyPolicy(card, base, key);
+                return collectKernelPolicy(card, base, key);
             });
         }
 
@@ -1672,6 +1646,23 @@ except Exception as e:
         function stopCode() {
             ws.send("STOP");
             appendOutput(">> Sending STOP signal...\n");
+        }
+
+        function applyRecommendedPolicies(policyKeys) {
+            disableAllPolicies();
+            
+            if (!policyKeys || !Array.isArray(policyKeys)) return;
+
+            policyKeys.forEach(key => {
+                const card = document.querySelector(`.policy-card[data-policy="${key}"]`);
+                if (card) {
+                    const checkbox = card.querySelector('input[type="checkbox"][name="policy-active"]');
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        setPolicyActive(key, true);
+                    }
+                }
+            });
         }
 
         function enableAllPolicies() {
